@@ -64,14 +64,18 @@ bo_xray_add_user() {
   tmp="$(mktemp)" || return 1
   {
     printf '{\n'
-    printf '  "tag": "%s",\n' "$tag"
-    printf '  "protocol": "vless",\n'
-    printf '  "settings": {\n'
-    printf '    "clients": [\n'
-    printf '      {"id": "%s", "email": "%s", "level": %s}\n' "$uuid" "$username" "$level"
-    printf '    ],\n'
-    printf '    "decryption": "none"\n'
-    printf '  }\n'
+    printf '  "inbounds": [\n'
+    printf '    {\n'
+    printf '      "tag": "%s",\n' "$tag"
+    printf '      "protocol": "vless",\n'
+    printf '      "settings": {\n'
+    printf '        "clients": [\n'
+    printf '          {"id": "%s", "email": "%s", "level": %s}\n' "$uuid" "$username" "$level"
+    printf '        ],\n'
+    printf '        "decryption": "none"\n'
+    printf '      }\n'
+    printf '    }\n'
+    printf '  ]\n'
     printf '}\n'
   } >"$tmp" || {
     rm -f "$tmp"

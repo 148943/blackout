@@ -17,11 +17,19 @@ bo_xray_api() {
   case "${1:-}" in
     adu)
       [ -f "${2:-}" ]
-      grep -q '"tag": "vless"' "$2"
-      grep -q '"protocol": "vless"' "$2"
-      grep -q '"id": "00000000-0000-0000-0000-000000000001"' "$2"
-      grep -q '"email": "aiman"' "$2"
-      grep -q '"level": 0' "$2"
+      python3 - "$2" <<'PY' || return 1
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    config = json.load(config_file)
+
+client = config["inbounds"][0]["settings"]["clients"][0]
+assert config["inbounds"][0]["tag"] == "vless"
+assert client["id"] == "00000000-0000-0000-0000-000000000001"
+assert client["email"] == "aiman"
+assert client["level"] == 0
+PY
       bo_xray_events="${bo_xray_events}adu:$2"$'\n'
       ;;
     rmu)
