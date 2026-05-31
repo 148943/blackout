@@ -23,9 +23,18 @@ fi
 
 bo_user_validate_username() {
   local username="$1"
-  [ -n "$username" ] || bo_fail "username required"
-  [ "${#username}" -le 64 ] || bo_fail "username is too long"
-  [[ "$username" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || bo_fail "username contains unsafe characters"
+  if [ -z "$username" ]; then
+    printf 'username required\n' >&2
+    return 1
+  fi
+  if [ "${#username}" -gt 64 ]; then
+    printf 'username is too long\n' >&2
+    return 1
+  fi
+  if ! [[ "$username" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
+    printf 'username contains unsafe characters\n' >&2
+    return 1
+  fi
 }
 
 bo_user_generate_uuid() {
@@ -50,25 +59,35 @@ bo_user_active_inbound() {
 
 bo_xray_add_user() {
   local username="$1" uuid="$2" level="${3:-0}" tag
-  tag="$(bo_user_active_inbound)"
-  bo_xray_api adu --tag "$tag" --email "$username" --level "$level" --uuid "$uuid"
+  tag="$(bo_user_active_inbound)" || return 1
+  bo_xray_api handlerservice adu --tag "$tag" --email "$username" --level "$level" --uuid "$uuid"
 }
 
 bo_xray_remove_user() {
   local username="$1" tag
-  tag="$(bo_user_active_inbound)"
-  bo_xray_api rmu --tag "$tag" --email "$username"
+  tag="$(bo_user_active_inbound)" || return 1
+  bo_xray_api handlerservice rmu --tag "$tag" --email "$username"
 }
 
 bo_user_add() {
   local username="$1" password="$2" uuid="$3" expires_at="$4" level="${5:-0}" now email
-  bo_user_validate_username "$username"
-  [ -n "$password" ] || bo_fail "password required"
-  [[ "$expires_at" =~ ^[0-9]+$ ]] || bo_fail "expires_at must be numeric"
-  now="$(date +%s)"
+  bo_user_validate_username "$username" || return 1
+  if [ -z "$password" ]; then
+    printf 'password required\n' >&2
+    return 1
+  fi
+  if ! [[ "$expires_at" =~ ^[0-9]+$ ]]; then
+    printf 'expires_at must be numeric\n' >&2
+    return 1
+  fi
+  now="$(date +%s)" || return 1
+  if [ "$expires_at" -le "$now" ]; then
+    printf 'expires_at must be in the future\n' >&2
+    return 1
+  fi
   email="$username@example"
 
-  bo_db_user_insert "$username" "$password" "$uuid" "$email" "$level" active "$now" "$expires_at"
+  bo_db_user_insert "$username" "$password" "$uuid" "$email" "$level" active "$now" "$expires_at" || return 1
   if ! bo_xray_add_user "$username" "$uuid" "$level"; then
     bo_db_user_set_status "$username" locked || true
     return 1
@@ -81,63 +100,78 @@ bo_user_add_prompt() {
   read -r -s -p "Password: " password
   printf '\n'
   read -r -p "Duration (12h, 7d, 1m): " duration
-  expires_at="$(bo_expiry_epoch "$duration")" || bo_fail "invalid duration: $duration"
-  uuid="$(bo_user_generate_uuid)"
-  bo_user_add "$username" "$password" "$uuid" "$expires_at"
+  if ! expires_at="$(bo_expiry_epoch "$duration")"; then
+    printf 'invalid duration: %s\n' "$duration" >&2
+    return 1
+  fi
+  uuid="$(bo_user_generate_uuid)" || return 1
+  bo_user_add "$username" "$password" "$uuid" "$expires_at" || return 1
   printf '%s\n' "$username"
 }
 
 bo_user_lock() {
   local username="$1"
-  bo_user_validate_username "$username"
-  bo_xray_remove_user "$username"
-  bo_db_user_set_status "$username" locked
+  bo_user_validate_username "$username" || return 1
+  bo_xray_remove_user "$username" || return 1
+  bo_db_user_set_status "$username" locked || return 1
 }
 
 bo_user_remove() {
   local username="$1"
-  bo_user_validate_username "$username"
-  bo_xray_remove_user "$username"
-  bo_db_user_delete "$username"
+  bo_user_validate_username "$username" || return 1
+  bo_xray_remove_user "$username" || return 1
+  bo_db_user_delete "$username" || return 1
 }
 
 bo_user_unlock() {
   local username="$1" row now password uuid email level status created_at expires_at updated_at
-  bo_user_validate_username "$username"
-  row="$(bo_db_user_get "$username")"
-  [ -n "$row" ] || bo_fail "unknown user: $username"
-  IFS=$'\t' read -r username password uuid email level status created_at expires_at updated_at <<<"$row"
-  now="$(date +%s)"
-  if [ "$expires_at" -le "$now" ]; then
-    bo_db_user_set_status "$username" expired
-    bo_fail "user expired: $username"
+  bo_user_validate_username "$username" || return 1
+  row="$(bo_db_user_get "$username")" || return 1
+  if [ -z "$row" ]; then
+    printf 'unknown user: %s\n' "$username" >&2
+    return 1
   fi
-  bo_xray_add_user "$username" "$uuid" "$level"
-  bo_db_user_set_status "$username" active
+  IFS=$'\t' read -r username password uuid email level status created_at expires_at updated_at <<<"$row"
+  now="$(date +%s)" || return 1
+  if [ "$expires_at" -le "$now" ]; then
+    bo_db_user_set_status "$username" expired || return 1
+    printf 'user expired: %s\n' "$username" >&2
+    return 1
+  fi
+  bo_xray_add_user "$username" "$uuid" "$level" || return 1
+  bo_db_user_set_status "$username" active || return 1
 }
 
 bo_user_modify() {
-  local username="$1" password duration expires_at
-  bo_user_validate_username "$username"
-  [ -n "$(bo_db_user_get "$username")" ] || bo_fail "unknown user: $username"
+  local username="$1" password duration expires_at row
+  bo_user_validate_username "$username" || return 1
+  row="$(bo_db_user_get "$username")" || return 1
+  if [ -z "$row" ]; then
+    printf 'unknown user: %s\n' "$username" >&2
+    return 1
+  fi
   read -r -s -p "New password: " password
   printf '\n'
   read -r -p "New duration (12h, 7d, 1m): " duration
-  expires_at="$(bo_expiry_epoch "$duration")" || bo_fail "invalid duration: $duration"
-  bo_db_user_update "$username" "$password" "$expires_at"
+  if ! expires_at="$(bo_expiry_epoch "$duration")"; then
+    printf 'invalid duration: %s\n' "$duration" >&2
+    return 1
+  fi
+  bo_db_user_update "$username" "$password" "$expires_at" || return 1
 }
 
 bo_user_list() {
-  bo_db_users_list
+  bo_db_users_list || return 1
 }
 
 bo_user_online() {
-  local username
+  local username usernames
+  usernames="$(bo_db_active_usernames)" || return 1
   while IFS= read -r username; do
     [ -n "$username" ] || continue
     printf '%s\t' "$username"
     bo_xray_user_stats "$username" || return 1
-  done < <(bo_db_active_usernames)
+  done <<<"$usernames"
 }
 
 bo_user_share_template() {
@@ -149,33 +183,52 @@ bo_user_share_template() {
     return 0
   fi
   template="$BLACKOUT_CONFIG_DIR/$profile/share.template"
-  [ -f "$template" ] || bo_fail "missing share template: $profile"
+  if [ ! -f "$template" ]; then
+    printf 'missing share template: %s\n' "$profile" >&2
+    return 1
+  fi
   printf '%s\n' "$template"
 }
 
 bo_user_link() {
-  local username="$1" row password uuid email level status created_at expires_at updated_at domain ws_path template
-  bo_user_validate_username "$username"
-  row="$(bo_db_user_get "$username")"
-  [ -n "$row" ] || bo_fail "unknown user: $username"
+  local username="$1" row password uuid email level status created_at expires_at updated_at domain ws_path template now
+  bo_user_validate_username "$username" || return 1
+  row="$(bo_db_user_get "$username")" || return 1
+  if [ -z "$row" ]; then
+    printf 'unknown user: %s\n' "$username" >&2
+    return 1
+  fi
   IFS=$'\t' read -r username password uuid email level status created_at expires_at updated_at <<<"$row"
-  [ "$status" = active ] || bo_fail "user is not active: $username"
-  domain="$(bo_user_setting domain)"
-  [ -n "$domain" ] || bo_fail "domain setting required"
-  ws_path="$(bo_user_setting ws_path /vless)"
-  template="$(bo_user_share_template)"
-  bo_render_template "$template" UUID "$uuid" DOMAIN "$domain" WS_PATH "$ws_path" USERNAME "$username"
+  if [ "$status" != active ]; then
+    printf 'user is not active: %s\n' "$username" >&2
+    return 1
+  fi
+  now="$(date +%s)" || return 1
+  if [ "$expires_at" -le "$now" ]; then
+    bo_db_user_set_status "$username" expired || return 1
+    printf 'user expired: %s\n' "$username" >&2
+    return 1
+  fi
+  domain="$(bo_user_setting domain)" || return 1
+  if [ -z "$domain" ]; then
+    printf 'domain setting required\n' >&2
+    return 1
+  fi
+  ws_path="$(bo_user_setting ws_path /vless)" || return 1
+  template="$(bo_user_share_template)" || return 1
+  bo_render_template "$template" UUID "$uuid" DOMAIN "$domain" WS_PATH "$ws_path" USERNAME "$username" || return 1
   printf '\n'
 }
 
 bo_user_expire() {
-  local username
+  local username usernames
+  usernames="$(bo_db_expired_active_usernames)" || return 1
   while IFS= read -r username; do
     [ -n "$username" ] || continue
-    bo_xray_remove_user "$username"
-    bo_db_user_set_status "$username" expired
+    bo_xray_remove_user "$username" || return 1
+    bo_db_user_set_status "$username" expired || return 1
     printf '%s\n' "$username"
-  done < <(bo_db_expired_active_usernames)
+  done <<<"$usernames"
 }
 
 bo_user_cmd() {

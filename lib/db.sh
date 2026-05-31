@@ -79,7 +79,8 @@ bo_db_users_list() {
 }
 
 bo_db_active_usernames() {
-  sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' ORDER BY username;"
+  local now="${1:-$(date +%s)}"
+  sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' AND expires_at > $now ORDER BY username;"
 }
 
 bo_db_expired_active_usernames() {
