@@ -14,15 +14,41 @@ bo_xray_latest_version() {
 }
 
 bo_xray_download() {
-  local version="$1" dest="$2" arch asset url
+  local version="$1" dest="$2" arch asset url zip digest
   [ "$version" = latest ] && version="$(bo_xray_latest_version)"
   arch="$(uname -m)"
   asset="$(bo_xray_asset_for_arch "$arch")" || bo_fail "unsupported architecture: $arch"
   url="https://github.com/XTLS/Xray-core/releases/download/$version/$asset"
+  zip="$dest/$asset"
+  digest="$zip.dgst"
   mkdir -p "$dest"
-  bo_trace "download: $url"
-  curl -fL "$url" -o "$dest/$asset"
-  printf '%s\n' "$dest/$asset"
+  bo_trace "download: $url" >&2
+  curl -fL "$url" -o "$zip"
+  if curl -fsSL "$(bo_xray_digest_url "$version" "$asset")" -o "$digest"; then
+    bo_xray_verify_zip "$zip" "$digest" "$asset"
+  else
+    bo_warn "digest unavailable for $asset; continuing without checksum verification"
+  fi
+  printf '%s\n' "$zip"
+}
+
+bo_xray_digest_url() {
+  local version="$1" asset="$2"
+  printf 'https://github.com/XTLS/Xray-core/releases/download/%s/%s.dgst\n' "$version" "$asset"
+}
+
+bo_xray_verify_zip() {
+  local zip="$1" digest_file="$2" asset="$3" expected actual
+  expected="$(grep -i 'SHA256' "$digest_file" | grep -F "$asset" | grep -Eo '[A-Fa-f0-9]{64}' | head -n 1 | tr 'A-F' 'a-f' || true)"
+  if [ -z "$expected" ]; then
+    bo_warn "digest file does not include SHA256 for $asset; continuing without checksum verification"
+    return 0
+  fi
+  actual="$(sha256sum "$zip" | awk '{print $1}')"
+  if [ "$actual" != "$expected" ]; then
+    printf 'checksum verification failed for %s\n' "$asset" >&2
+    return 1
+  fi
 }
 
 bo_xray_install_version() {
