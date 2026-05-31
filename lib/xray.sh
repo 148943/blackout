@@ -43,6 +43,25 @@ bo_xray_api() {
   xray api "$service" --server=127.0.0.1:60001 "$@"
 }
 
+bo_xray_stat_name() {
+  local username="$1" direction="$2"
+  case "$direction" in
+    uplink) printf 'user>>>%s>>>traffic>>>uplink\n' "$username" ;;
+    downlink) printf 'user>>>%s>>>traffic>>>downlink\n' "$username" ;;
+    *) return 1 ;;
+  esac
+}
+
+bo_xray_query_stat() {
+  local name="$1"
+  bo_xray_api statsquery --pattern "$name" --reset=false
+}
+
+bo_xray_user_stats() {
+  local username="$1"
+  bo_xray_query_stat "user>>>$username>>>traffic>>>"
+}
+
 bo_xray_cmd() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in

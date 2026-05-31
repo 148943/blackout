@@ -11,3 +11,10 @@ if bo_xray_asset_for_arch mips >/dev/null 2>&1; then
   echo "unsupported arch accepted" >&2
   exit 1
 fi
+
+[ "$(bo_xray_stat_name aiman uplink)" = "user>>>aiman>>>traffic>>>uplink" ]
+[ "$(bo_xray_stat_name aiman downlink)" = "user>>>aiman>>>traffic>>>downlink" ]
+if bo_xray_stat_name aiman sideways >/dev/null 2>&1; then
+  echo "unsupported stat direction accepted" >&2
+  exit 1
+fi
