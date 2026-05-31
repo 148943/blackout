@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+bin="$tmp/bin"
+mkdir -p "$bin"
+
+cat >"$bin/git" <<'SH'
+#!/usr/bin/env bash
+printf 'git %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+case "$1" in
+  ls-remote)
+    printf '0123456789abcdef0123456789abcdef01234567\trefs/heads/master\n'
+    ;;
+  clone)
+    dest="${@: -1}"
+    mkdir -p "$dest/lib" "$dest/configs/vless-ws-nginx"
+    printf '#!/usr/bin/env bash\n' >"$dest/blackout"
+    chmod +x "$dest/blackout"
+    printf 'new lib\n' >"$dest/lib/common.sh"
+    printf '{}\n' >"$dest/configs/vless-ws-nginx/xray.conf"
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+SH
+chmod +x "$bin/git"
+
+cat >"$bin/id" <<'SH'
+#!/usr/bin/env bash
+if [ "${1:-}" = "-u" ]; then
+  printf '0\n'
+else
+  command id "$@"
+fi
+SH
+chmod +x "$bin/id"
+
+export PATH="$bin:$PATH"
+export BLACKOUT_TEST_LOG="$tmp/calls.log"
+export NO_COLOR=1
+export BLACKOUT_VERSION="test-version"
+export BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
+
+. "$ROOT_DIR/lib/common.sh"
+. "$ROOT_DIR/lib/update.sh"
+
+check_output="$(bo_update_check)"
+grep -q 'installed: test-version' <<<"$check_output"
+grep -q 'remote master: 0123456789abcdef0123456789abcdef01234567' <<<"$check_output"
+grep -q 'git ls-remote git@github.com:148943/blackout.git refs/heads/master' "$BLACKOUT_TEST_LOG"
+
+install_dir="$tmp/opt/blackout"
+backup_dir="$tmp/backups"
+bin_path="$tmp/usr/local/bin/blackout"
+mkdir -p "$(dirname "$bin_path")" "$install_dir/lib" "$install_dir/configs" "$tmp/etc/blackout" "$tmp/var/lib/blackout"
+printf 'old cli\n' >"$bin_path"
+printf 'old lib\n' >"$install_dir/lib/old.sh"
+printf 'domain should remain\n' >"$tmp/etc/blackout/blackout.env"
+printf 'db should remain\n' >"$tmp/var/lib/blackout/blackout.db"
+
+export BLACKOUT_BIN_PATH="$bin_path"
+export BLACKOUT_INSTALL_DIR="$install_dir"
+export BLACKOUT_BACKUP_DIR="$backup_dir"
+
+bo_update_cmd run
+
+[ -x "$bin_path" ]
+[ -f "$install_dir/lib/common.sh" ]
+[ -f "$install_dir/configs/vless-ws-nginx/xray.conf" ]
+[ ! -e "$install_dir/lib/old.sh" ]
+[ "$(cat "$tmp/etc/blackout/blackout.env")" = "domain should remain" ]
+[ "$(cat "$tmp/var/lib/blackout/blackout.db")" = "db should remain" ]
+find "$backup_dir" -type f -name blackout | grep -q .
+find "$backup_dir" -type f -name old.sh | grep -q .
+
+if ( bo_update_cmd nope ) >/dev/null 2>&1; then
+  echo "unknown update command accepted" >&2
+  exit 1
+fi
+
+export BLACKOUT_DRY_RUN=1
+export BLACKOUT_ROOT_DIR="$ROOT_DIR"
+. "$ROOT_DIR/install.sh"
+
+dry_log="$tmp/install-dry.log"
+export BLACKOUT_DRY_RUN_LOG="$dry_log"
+bo_install_apt_packages
+grep -q 'apt-get update' "$dry_log"
+grep -q 'apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime' "$dry_log"
+
+repo_install="$tmp/repo-install"
+mkdir -p "$repo_install"
+bo_install_copy_tree "$ROOT_DIR" "$repo_install" "$tmp/bin/blackout"
+[ -x "$tmp/bin/blackout" ]
+[ -d "$repo_install/lib" ]
+[ -d "$repo_install/configs" ]
+[ ! -d "$repo_install/blackout/lib" ]
+
+env_file="$tmp/blackout.env"
+bo_install_write_env "$env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db"
+grep -q 'BLACKOUT_REPO="git@github.com:148943/blackout.git"' "$env_file"
+grep -q 'BLACKOUT_BRANCH="master"' "$env_file"
+grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
