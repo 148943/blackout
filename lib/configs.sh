@@ -76,7 +76,7 @@ bo_config_switch() {
     >"$stage/nginx.conf"
   cp "$profile_dir/share.template" "$stage/share.template"
 
-  jq -e "$stage/xray.conf" >/dev/null
+  jq -e . "$stage/xray.conf" >/dev/null
   bo_nginx_install_site "$stage/nginx.conf"
   bo_nginx_test
 

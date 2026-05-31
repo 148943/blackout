@@ -25,10 +25,11 @@ chmod +x "$bin/nginx"
 cat >"$bin/jq" <<'SH'
 #!/usr/bin/env bash
 printf 'jq %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
-case "$1" in
-  -e) shift ;;
-esac
-python3 -m json.tool "$1" >/dev/null
+if [ "$#" -ne 3 ] || [ "$1" != "-e" ] || [ "$2" != "." ]; then
+  printf 'unexpected jq command shape\n' >&2
+  exit 2
+fi
+python3 -m json.tool "$3" >/dev/null
 SH
 chmod +x "$bin/jq"
 
@@ -70,7 +71,7 @@ bo_config_switch vless-ws-nginx
 [ -L "$tmp/etc/nginx/sites-enabled/blackout" ]
 [ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
 
-jq -e "$BLACKOUT_XRAY_CONFIG" >/dev/null
+jq -e . "$BLACKOUT_XRAY_CONFIG" >/dev/null
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'systemctl restart xray' "$BLACKOUT_TEST_LOG"
