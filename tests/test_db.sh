@@ -9,3 +9,8 @@ BLACKOUT_DB="$tmpdb"
 bo_db_init
 bo_db_init
 sqlite3 "$BLACKOUT_DB" "select name from sqlite_master where type='table' and name='users';" | grep -qx users
+
+bo_db_user_insert aiman secret 00000000-0000-0000-0000-000000000001 aiman@example 0 active 100 200
+bo_db_user_status aiman | grep -qx active
+bo_db_user_set_status aiman locked
+bo_db_user_status aiman | grep -qx locked

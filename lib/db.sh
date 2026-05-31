@@ -4,6 +4,10 @@ bo_db() {
   sqlite3 "$BLACKOUT_DB" "$@"
 }
 
+bo_sql_quote() {
+  printf "%s" "$1" | sed "s/'/''/g"
+}
+
 bo_db_init() {
   mkdir -p "$(dirname "$BLACKOUT_DB")"
   sqlite3 "$BLACKOUT_DB" <<'SQL'
@@ -40,12 +44,50 @@ SQL
 }
 
 bo_setting_get() {
-  sqlite3 "$BLACKOUT_DB" "SELECT value FROM settings WHERE key = '$(printf "%s" "$1" | sed "s/'/''/g")';"
+  sqlite3 "$BLACKOUT_DB" "SELECT value FROM settings WHERE key = '$(bo_sql_quote "$1")';"
 }
 
 bo_setting_set() {
   local key value
-  key="$(printf "%s" "$1" | sed "s/'/''/g")"
-  value="$(printf "%s" "$2" | sed "s/'/''/g")"
+  key="$(bo_sql_quote "$1")"
+  value="$(bo_sql_quote "$2")"
   sqlite3 "$BLACKOUT_DB" "INSERT INTO settings(key,value) VALUES('$key','$value') ON CONFLICT(key) DO UPDATE SET value=excluded.value;"
+}
+
+bo_db_user_insert() {
+  sqlite3 "$BLACKOUT_DB" "INSERT INTO users(username,password,uuid,email,level,status,created_at,expires_at,updated_at) VALUES('$(bo_sql_quote "$1")','$(bo_sql_quote "$2")','$(bo_sql_quote "$3")','$(bo_sql_quote "$4")',$5,'$(bo_sql_quote "$6")',$7,$8,$(date +%s));"
+}
+
+bo_db_user_status() {
+  sqlite3 "$BLACKOUT_DB" "SELECT status FROM users WHERE username='$(bo_sql_quote "$1")';"
+}
+
+bo_db_user_set_status() {
+  sqlite3 "$BLACKOUT_DB" "UPDATE users SET status='$(bo_sql_quote "$2")', updated_at=$(date +%s) WHERE username='$(bo_sql_quote "$1")';"
+}
+
+bo_db_user_delete() {
+  sqlite3 "$BLACKOUT_DB" "DELETE FROM users WHERE username='$(bo_sql_quote "$1")';"
+}
+
+bo_db_user_get() {
+  sqlite3 -separator $'\t' "$BLACKOUT_DB" "SELECT username,password,uuid,email,level,status,created_at,expires_at,updated_at FROM users WHERE username='$(bo_sql_quote "$1")';"
+}
+
+bo_db_users_list() {
+  sqlite3 -header -column "$BLACKOUT_DB" "SELECT username,status,expires_at FROM users ORDER BY username;"
+}
+
+bo_db_active_usernames() {
+  sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' ORDER BY username;"
+}
+
+bo_db_expired_active_usernames() {
+  local now="${1:-$(date +%s)}"
+  sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' AND expires_at <= $now ORDER BY username;"
+}
+
+bo_db_user_update() {
+  local username="$1" password="$2" expires_at="$3"
+  sqlite3 "$BLACKOUT_DB" "UPDATE users SET password='$(bo_sql_quote "$password")', expires_at=$expires_at, updated_at=$(date +%s) WHERE username='$(bo_sql_quote "$username")';"
 }
