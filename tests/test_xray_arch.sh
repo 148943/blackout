@@ -60,6 +60,7 @@ curl() {
     *.dgst)
       sha="$(sha256sum "${output%.dgst}" | awk '{print $1}')"
       printf 'SHA2-256= %s\n' "$sha" > "$output"
+      printf '200'
       ;;
     *) printf 'downloaded zip\n' > "$output" ;;
   esac
@@ -80,7 +81,74 @@ curl() {
   done
   [ -n "$output" ] || return 1
   case "$output" in
-    *.dgst) printf 'SHA2-256= %064d\n' 0 > "$output" ;;
+    *.dgst) printf '404' ;;
+    *) printf 'downloaded zip\n' > "$output" ;;
+  esac
+}
+
+out="$(bo_xray_download v1.0.0 "$tmpdir/download-404" 2>/dev/null)"
+[ "$out" = "$tmpdir/download-404/Xray-linux-64.zip" ]
+
+curl() {
+  local output="" arg next_is_output=0
+  for arg in "$@"; do
+    if [ "$next_is_output" -eq 1 ]; then
+      output="$arg"
+      next_is_output=0
+      continue
+    fi
+    [ "$arg" = "-o" ] && next_is_output=1
+  done
+  [ -n "$output" ] || return 1
+  case "$output" in
+    *.dgst) printf '500' ;;
+    *) printf 'downloaded zip\n' > "$output" ;;
+  esac
+}
+
+download_status=0
+download_out="$(bo_xray_download v1.0.0 "$tmpdir/download-500" 2>/dev/null)" || download_status=$?
+[ "$download_status" -ne 0 ]
+[ -z "$download_out" ]
+
+curl() {
+  local output="" arg next_is_output=0
+  for arg in "$@"; do
+    if [ "$next_is_output" -eq 1 ]; then
+      output="$arg"
+      next_is_output=0
+      continue
+    fi
+    [ "$arg" = "-o" ] && next_is_output=1
+  done
+  [ -n "$output" ] || return 1
+  case "$output" in
+    *.dgst) return 7 ;;
+    *) printf 'downloaded zip\n' > "$output" ;;
+  esac
+}
+
+download_status=0
+download_out="$(bo_xray_download v1.0.0 "$tmpdir/download-network" 2>/dev/null)" || download_status=$?
+[ "$download_status" -ne 0 ]
+[ -z "$download_out" ]
+
+curl() {
+  local output="" arg next_is_output=0
+  for arg in "$@"; do
+    if [ "$next_is_output" -eq 1 ]; then
+      output="$arg"
+      next_is_output=0
+      continue
+    fi
+    [ "$arg" = "-o" ] && next_is_output=1
+  done
+  [ -n "$output" ] || return 1
+  case "$output" in
+    *.dgst)
+      printf 'SHA2-256= %064d\n' 0 > "$output"
+      printf '200'
+      ;;
     *) printf 'downloaded zip\n' > "$output" ;;
   esac
 }

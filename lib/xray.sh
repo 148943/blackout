@@ -14,7 +14,7 @@ bo_xray_latest_version() {
 }
 
 bo_xray_download() {
-  local version="$1" dest="$2" arch asset url zip digest
+  local version="$1" dest="$2" arch asset url zip digest digest_status
   [ "$version" = latest ] && version="$(bo_xray_latest_version)"
   arch="$(uname -m)"
   asset="$(bo_xray_asset_for_arch "$arch")" || bo_fail "unsupported architecture: $arch"
@@ -24,12 +24,35 @@ bo_xray_download() {
   mkdir -p "$dest"
   bo_trace "download: $url" >&2
   curl -fL "$url" -o "$zip"
-  if curl -fsSL "$(bo_xray_digest_url "$version" "$asset")" -o "$digest"; then
+  if bo_xray_download_digest "$(bo_xray_digest_url "$version" "$asset")" "$digest" "$asset"; then
     bo_xray_verify_zip "$zip" "$digest" "$asset" || return 1
   else
-    bo_warn "digest unavailable for $asset; continuing without checksum verification"
+    digest_status=$?
+    if [ "$digest_status" -eq 2 ]; then
+      bo_warn "digest unavailable for $asset; continuing without checksum verification"
+    else
+      return 1
+    fi
   fi
   printf '%s\n' "$zip"
+}
+
+bo_xray_download_digest() {
+  local url="$1" digest="$2" asset="$3" http_status curl_status
+  curl_status=0
+  http_status="$(curl -sSL -o "$digest" -w '%{http_code}' "$url")" || curl_status=$?
+  if [ "$curl_status" -ne 0 ]; then
+    bo_warn "digest download failed for $asset (curl exit $curl_status)"
+    return 1
+  fi
+  case "$http_status" in
+    2??) return 0 ;;
+    404) return 2 ;;
+    *)
+      bo_warn "digest download failed for $asset (HTTP ${http_status:-unknown})"
+      return 1
+      ;;
+  esac
 }
 
 bo_xray_digest_url() {
