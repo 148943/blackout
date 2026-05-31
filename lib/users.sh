@@ -275,17 +275,25 @@ bo_user_expire() {
   done <<<"$usernames"
 }
 
+bo_user_need_arg() {
+  local name="$1" value="${2:-}"
+  if [ -z "$value" ]; then
+    printf '%s required\n' "$name" >&2
+    return 2
+  fi
+}
+
 bo_user_cmd() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
     add) bo_user_add_prompt ;;
-    remove) bo_user_remove "${1:?username required}" ;;
-    modify) bo_user_modify "${1:?username required}" ;;
-    lock) bo_user_lock "${1:?username required}" ;;
-    unlock) bo_user_unlock "${1:?username required}" ;;
+    remove) bo_user_need_arg username "${1:-}" && bo_user_remove "$1" ;;
+    modify) bo_user_need_arg username "${1:-}" && bo_user_modify "$1" ;;
+    lock) bo_user_need_arg username "${1:-}" && bo_user_lock "$1" ;;
+    unlock) bo_user_need_arg username "${1:-}" && bo_user_unlock "$1" ;;
     list) bo_user_list ;;
     online) bo_user_online ;;
-    link) bo_user_link "${1:?username required}" ;;
+    link) bo_user_need_arg username "${1:-}" && bo_user_link "$1" ;;
     expire) bo_user_expire ;;
     *) bo_fail "unknown user command: ${cmd:-}" ;;
   esac

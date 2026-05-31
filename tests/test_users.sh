@@ -48,6 +48,24 @@ bo_xray_user_stats() {
 bo_db_init
 bo_setting_set active_inbound vless
 
+for cmd in remove modify lock unlock link; do
+  output="$(
+    if (
+      if bo_user_cmd "$cmd" 2>/dev/null; then
+        echo "missing $cmd arg succeeded" >&2
+        exit 1
+      fi
+      printf 'survived\n'
+    ); then
+      :
+    else
+      echo "missing $cmd arg exited shell" >&2
+      exit 1
+    fi
+  )"
+  [ "$output" = survived ]
+done
+
 bo_user_add aiman secret 00000000-0000-0000-0000-000000000001 4102444800
 bo_db_user_status aiman | grep -qx active
 printf '%s' "$bo_xray_events" | grep -Eq '^adu:'
