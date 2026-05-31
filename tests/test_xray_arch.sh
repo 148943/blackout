@@ -22,11 +22,14 @@ fi
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
+bo_trace() { printf 'trace: %s\n' "$*"; }
+bo_warn() { printf 'warn: %s\n' "$*" >&2; }
+
 zip="$tmpdir/Xray-linux-64.zip"
 digest="$tmpdir/Xray-linux-64.zip.dgst"
 printf 'xray zip payload\n' > "$zip"
 sha="$(sha256sum "$zip" | awk '{print $1}')"
-printf 'SHA256 (%s) = %s\n' "Xray-linux-64.zip" "$sha" > "$digest"
+printf 'SHA2-256= %s\n' "$sha" > "$digest"
 bo_xray_verify_zip "$zip" "$digest" "Xray-linux-64.zip"
 
 printf 'SHA256 (%s) = %s\n' "Xray-linux-64.zip" "0000000000000000000000000000000000000000000000000000000000000000" > "$digest"
@@ -35,8 +38,12 @@ if bo_xray_verify_zip "$zip" "$digest" "Xray-linux-64.zip" >/dev/null 2>&1; then
   exit 1
 fi
 
-bo_trace() { printf 'trace: %s\n' "$*"; }
-bo_warn() { printf 'warn: %s\n' "$*" >&2; }
+printf 'no checksum here\n' > "$digest"
+if bo_xray_verify_zip "$zip" "$digest" "Xray-linux-64.zip" >/dev/null 2>&1; then
+  echo "missing digest accepted" >&2
+  exit 1
+fi
+
 uname() { printf 'x86_64\n'; }
 curl() {
   local output="" arg next_is_output=0
@@ -52,7 +59,7 @@ curl() {
   case "$output" in
     *.dgst)
       sha="$(sha256sum "${output%.dgst}" | awk '{print $1}')"
-      printf 'SHA256 (%s) = %s\n' "$(basename "${output%.dgst}")" "$sha" > "$output"
+      printf 'SHA2-256= %s\n' "$sha" > "$output"
       ;;
     *) printf 'downloaded zip\n' > "$output" ;;
   esac
@@ -60,3 +67,25 @@ curl() {
 
 out="$(bo_xray_download v1.0.0 "$tmpdir/download")"
 [ "$out" = "$tmpdir/download/Xray-linux-64.zip" ]
+
+curl() {
+  local output="" arg next_is_output=0
+  for arg in "$@"; do
+    if [ "$next_is_output" -eq 1 ]; then
+      output="$arg"
+      next_is_output=0
+      continue
+    fi
+    [ "$arg" = "-o" ] && next_is_output=1
+  done
+  [ -n "$output" ] || return 1
+  case "$output" in
+    *.dgst) printf 'SHA2-256= %064d\n' 0 > "$output" ;;
+    *) printf 'downloaded zip\n' > "$output" ;;
+  esac
+}
+
+download_status=0
+download_out="$(bo_xray_download v1.0.0 "$tmpdir/download-fail" 2>/dev/null)" || download_status=$?
+[ "$download_status" -ne 0 ]
+[ -z "$download_out" ]

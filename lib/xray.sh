@@ -25,7 +25,7 @@ bo_xray_download() {
   bo_trace "download: $url" >&2
   curl -fL "$url" -o "$zip"
   if curl -fsSL "$(bo_xray_digest_url "$version" "$asset")" -o "$digest"; then
-    bo_xray_verify_zip "$zip" "$digest" "$asset"
+    bo_xray_verify_zip "$zip" "$digest" "$asset" || return 1
   else
     bo_warn "digest unavailable for $asset; continuing without checksum verification"
   fi
@@ -39,10 +39,10 @@ bo_xray_digest_url() {
 
 bo_xray_verify_zip() {
   local zip="$1" digest_file="$2" asset="$3" expected actual
-  expected="$(grep -i 'SHA256' "$digest_file" | grep -F "$asset" | grep -Eo '[A-Fa-f0-9]{64}' | head -n 1 | tr 'A-F' 'a-f' || true)"
+  expected="$(grep -Ei 'SHA2-256|SHA256' "$digest_file" | grep -Eo '[A-Fa-f0-9]{64}' | head -n 1 | tr 'A-F' 'a-f' || true)"
   if [ -z "$expected" ]; then
-    bo_warn "digest file does not include SHA256 for $asset; continuing without checksum verification"
-    return 0
+    printf 'checksum digest not found for %s\n' "$asset" >&2
+    return 1
   fi
   actual="$(sha256sum "$zip" | awk '{print $1}')"
   if [ "$actual" != "$expected" ]; then
