@@ -33,27 +33,51 @@ bo_cert_domain() {
   printf '%s\n' "$domain"
 }
 
+bo_cert_with_nginx_stopped() {
+  local status=0
+  systemctl stop nginx || true
+  "$@" || status=$?
+  systemctl start nginx || true
+  return "$status"
+}
+
+bo_cert_issue_acme() {
+  local domain="${1:?domain required}"
+  "$(bo_acme_bin)" --issue --standalone -d "$domain" || return $?
+  "$(bo_acme_bin)" --install-cert -d "$domain" --fullchain-file "$BLACKOUT_SSL_FULLCHAIN" --key-file "$BLACKOUT_SSL_PRIVKEY"
+}
+
+bo_cert_renew_acme() {
+  local domain="${1:?domain required}"
+  "$(bo_acme_bin)" --renew -d "$domain" --force || return $?
+  "$(bo_acme_bin)" --install-cert -d "$domain" --fullchain-file "$BLACKOUT_SSL_FULLCHAIN" --key-file "$BLACKOUT_SSL_PRIVKEY"
+}
+
 bo_cert_issue() {
-  local email="${1:?email required}" domain="${2:-}"
+  local email="${1:?email required}" domain="${2:-}" status
   [ -n "$domain" ] || domain="$(bo_cert_domain)"
   bo_acme_install "$email"
   mkdir -p "$BLACKOUT_SSL_DIR"
-  systemctl stop nginx || true
-  "$(bo_acme_bin)" --issue --standalone -d "$domain"
-  "$(bo_acme_bin)" --install-cert -d "$domain" --fullchain-file "$BLACKOUT_SSL_FULLCHAIN" --key-file "$BLACKOUT_SSL_PRIVKEY"
+  if bo_cert_with_nginx_stopped bo_cert_issue_acme "$domain"; then
+    :
+  else
+    status=$?
+    return "$status"
+  fi
   bo_setting_set domain "$domain"
-  systemctl start nginx
   bo_nginx_reload || true
 }
 
 bo_cert_renew() {
-  local domain
+  local domain status
   domain="$(bo_cert_domain)"
   mkdir -p "$BLACKOUT_SSL_DIR"
-  systemctl stop nginx || true
-  "$(bo_acme_bin)" --renew -d "$domain" --force
-  "$(bo_acme_bin)" --install-cert -d "$domain" --fullchain-file "$BLACKOUT_SSL_FULLCHAIN" --key-file "$BLACKOUT_SSL_PRIVKEY"
-  systemctl start nginx
+  if bo_cert_with_nginx_stopped bo_cert_renew_acme "$domain"; then
+    :
+  else
+    status=$?
+    return "$status"
+  fi
   bo_nginx_reload || true
 }
 

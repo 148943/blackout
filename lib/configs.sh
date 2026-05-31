@@ -43,17 +43,16 @@ bo_config_profile_dir() {
 bo_config_validate_inputs() {
   local domain="$1" ws_path="$2" xray_api_port="$3"
   [ -n "$domain" ] || bo_fail "domain setting required"
-  case "$ws_path" in
-    /*) ;;
-    *) bo_fail "ws_path must start with /" ;;
-  esac
+  [ "${#domain}" -le 253 ] || bo_fail "domain is too long"
+  [[ "$domain" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]] || bo_fail "domain contains unsafe characters"
+  [[ "$ws_path" =~ ^/[A-Za-z0-9._~/-]+$ ]] || bo_fail "ws_path contains unsafe characters"
   case "$xray_api_port" in
     ''|*[!0-9]*) bo_fail "xray_api_port must be numeric" ;;
   esac
 }
 
 bo_config_switch() {
-  local profile="${1:?profile required}" profile_dir domain ws_path xray_api_port stage
+  local profile="${1:?profile required}" profile_dir domain ws_path xray_api_port stage nginx_snapshot
   profile_dir="$(bo_config_profile_dir "$profile")"
   [ -d "$profile_dir" ] || bo_fail "unknown profile: $profile"
   [ -f "$profile_dir/xray.conf" ] || bo_fail "missing xray template: $profile"
@@ -76,9 +75,19 @@ bo_config_switch() {
     >"$stage/nginx.conf"
   cp "$profile_dir/share.template" "$stage/share.template"
 
-  jq -e . "$stage/xray.conf" >/dev/null
+  if ! jq -e . "$stage/xray.conf" >/dev/null; then
+    rm -rf "$stage"
+    return 1
+  fi
+
+  nginx_snapshot="$stage/nginx-snapshot"
+  bo_nginx_snapshot_site "$nginx_snapshot"
   bo_nginx_install_site "$stage/nginx.conf"
-  bo_nginx_test
+  if ! bo_nginx_test; then
+    bo_nginx_restore_site "$nginx_snapshot"
+    rm -rf "$stage"
+    return 1
+  fi
 
   mkdir -p "$(dirname "$BLACKOUT_XRAY_CONFIG")" "$BLACKOUT_ETC_DIR"
   install -m 0644 "$stage/xray.conf" "$BLACKOUT_XRAY_CONFIG"

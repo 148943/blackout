@@ -19,6 +19,10 @@ chmod +x "$bin/systemctl"
 cat >"$bin/nginx" <<'SH'
 #!/usr/bin/env bash
 printf 'nginx %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+active="$BLACKOUT_NGINX_AVAILABLE_DIR/blackout"
+if [ "${BLACKOUT_NGINX_FAIL_ON_BAD_CONFIG:-0}" = "1" ] && [ -e "$active" ] && grep -q 'FAIL_NGINX' "$active"; then
+  exit 1
+fi
 SH
 chmod +x "$bin/nginx"
 
@@ -36,6 +40,18 @@ chmod +x "$bin/jq"
 cat >"$tmp/home/.acme.sh/acme.sh" <<'SH'
 #!/usr/bin/env bash
 printf 'acme.sh %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+case " $* " in
+  *" --issue "*)
+    [ "${BLACKOUT_ACME_FAIL_ISSUE:-0}" = "1" ] && exit 42
+    ;;
+  *" --renew "*)
+    [ "${BLACKOUT_ACME_FAIL_RENEW:-0}" = "1" ] && exit 43
+    ;;
+  *" --install-cert "*)
+    [ "${BLACKOUT_ACME_FAIL_INSTALL:-0}" = "1" ] && exit 44
+    ;;
+esac
+exit 0
 SH
 chmod +x "$tmp/home/.acme.sh/acme.sh"
 
@@ -72,10 +88,39 @@ bo_config_switch vless-ws-nginx
 [ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
 
 jq -e . "$BLACKOUT_XRAY_CONFIG" >/dev/null
+grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'systemctl restart xray' "$BLACKOUT_TEST_LOG"
 grep -q 'systemctl reload nginx' "$BLACKOUT_TEST_LOG"
+
+before_nginx="$(cat "$tmp/etc/nginx/sites-available/blackout")"
+mkdir -p "$tmp/configs/bad-nginx"
+cp "$tmp/configs/vless-ws-nginx/xray.conf" "$tmp/configs/bad-nginx/xray.conf"
+cp "$tmp/configs/vless-ws-nginx/share.template" "$tmp/configs/bad-nginx/share.template"
+printf 'FAIL_NGINX\n' >"$tmp/configs/bad-nginx/nginx.conf"
+export BLACKOUT_NGINX_FAIL_ON_BAD_CONFIG=1
+if bo_config_switch bad-nginx >/dev/null 2>&1; then
+  echo "bad nginx config accepted" >&2
+  exit 1
+fi
+unset BLACKOUT_NGINX_FAIL_ON_BAD_CONFIG
+[ "$(cat "$tmp/etc/nginx/sites-available/blackout")" = "$before_nginx" ]
+[ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
+
+bo_setting_set domain 'bad;example.com'
+if ( bo_config_switch vless-ws-nginx ) >/dev/null 2>&1; then
+  echo "unsafe domain accepted" >&2
+  exit 1
+fi
+bo_setting_set domain example.com
+
+bo_setting_set ws_path '/bad path'
+if ( bo_config_switch vless-ws-nginx ) >/dev/null 2>&1; then
+  echo "unsafe ws_path accepted" >&2
+  exit 1
+fi
+bo_setting_set ws_path /blackout
 
 bo_cert_cmd change-domain new.example.com
 [ "$(bo_setting_get domain)" = "new.example.com" ]
@@ -86,3 +131,33 @@ grep -q "acme.sh --install-cert -d new.example.com --fullchain-file $tmp/etc/ssl
 
 bo_cert_cmd renew
 grep -q 'acme.sh --renew -d new.example.com --force' "$BLACKOUT_TEST_LOG"
+
+starts_before="$(grep -c 'systemctl start nginx' "$BLACKOUT_TEST_LOG")"
+export BLACKOUT_ACME_FAIL_ISSUE=1
+set +e
+bo_cert_cmd issue admin@example.com >/dev/null 2>&1
+issue_status=$?
+set -e
+if [ "$issue_status" -eq 0 ]; then
+  echo "failed issue returned success" >&2
+  exit 1
+fi
+[ "$issue_status" -eq 42 ]
+unset BLACKOUT_ACME_FAIL_ISSUE
+starts_after="$(grep -c 'systemctl start nginx' "$BLACKOUT_TEST_LOG")"
+[ "$starts_after" -gt "$starts_before" ]
+
+starts_before="$starts_after"
+export BLACKOUT_ACME_FAIL_RENEW=1
+set +e
+bo_cert_cmd renew >/dev/null 2>&1
+renew_status=$?
+set -e
+if [ "$renew_status" -eq 0 ]; then
+  echo "failed renew returned success" >&2
+  exit 1
+fi
+[ "$renew_status" -eq 43 ]
+unset BLACKOUT_ACME_FAIL_RENEW
+starts_after="$(grep -c 'systemctl start nginx' "$BLACKOUT_TEST_LOG")"
+[ "$starts_after" -gt "$starts_before" ]
