@@ -123,6 +123,13 @@ bo_user_remove() {
   bo_db_user_delete "$username" || return 1
 }
 
+bo_user_mark_expired_runtime() {
+  local username="$1"
+  bo_user_validate_username "$username" || return 1
+  bo_xray_remove_user "$username" || return 1
+  bo_db_user_set_status "$username" expired || return 1
+}
+
 bo_user_unlock() {
   local username="$1" row now password uuid email level status created_at expires_at updated_at
   bo_user_validate_username "$username" || return 1
@@ -134,7 +141,7 @@ bo_user_unlock() {
   IFS=$'\t' read -r username password uuid email level status created_at expires_at updated_at <<<"$row"
   now="$(date +%s)" || return 1
   if [ "$expires_at" -le "$now" ]; then
-    bo_db_user_set_status "$username" expired || return 1
+    bo_user_mark_expired_runtime "$username" || return 1
     printf 'user expired: %s\n' "$username" >&2
     return 1
   fi
@@ -205,7 +212,7 @@ bo_user_link() {
   fi
   now="$(date +%s)" || return 1
   if [ "$expires_at" -le "$now" ]; then
-    bo_db_user_set_status "$username" expired || return 1
+    bo_user_mark_expired_runtime "$username" || return 1
     printf 'user expired: %s\n' "$username" >&2
     return 1
   fi
@@ -225,8 +232,7 @@ bo_user_expire() {
   usernames="$(bo_db_expired_active_usernames)" || return 1
   while IFS= read -r username; do
     [ -n "$username" ] || continue
-    bo_xray_remove_user "$username" || return 1
-    bo_db_user_set_status "$username" expired || return 1
+    bo_user_mark_expired_runtime "$username" || return 1
     printf '%s\n' "$username"
   done <<<"$usernames"
 }

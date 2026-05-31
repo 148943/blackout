@@ -62,11 +62,28 @@ bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.
 bo_user_online | grep -q 'aiman'
 
 bo_db_user_insert stale secret 00000000-0000-0000-0000-000000000006 stale@example 0 active 100 101
+bo_xray_events=""
 if bo_user_link stale >/dev/null 2>&1; then
   echo "expired active user received link" >&2
   exit 1
 fi
+printf '%s' "$bo_xray_events" | grep -qx 'handlerservice rmu --tag vless --email stale'
 bo_db_user_status stale | grep -qx expired
+
+bo_db_user_insert stale_fail secret 00000000-0000-0000-0000-000000000008 stale_fail@example 0 active 100 101
+bo_xray_api() {
+  return 1
+}
+if bo_user_link stale_fail >/dev/null 2>&1; then
+  echo "expired active link succeeded despite remove failure" >&2
+  exit 1
+fi
+bo_db_user_status stale_fail | grep -qx active
+bo_db_user_set_status stale_fail locked
+
+bo_xray_api() {
+  bo_xray_events="${bo_xray_events}$*"$'\n'
+}
 bo_xray_events=""
 bo_user_online | grep -q 'aiman'
 if printf '%s' "$bo_xray_events" | grep -q 'stats:stale'; then
@@ -74,6 +91,29 @@ if printf '%s' "$bo_xray_events" | grep -q 'stats:stale'; then
   exit 1
 fi
 
+bo_db_user_insert unlock_expired secret 00000000-0000-0000-0000-000000000009 unlock_expired@example 0 active 100 101
+bo_xray_events=""
+if bo_user_unlock unlock_expired >/dev/null 2>&1; then
+  echo "expired active unlock succeeded" >&2
+  exit 1
+fi
+printf '%s' "$bo_xray_events" | grep -qx 'handlerservice rmu --tag vless --email unlock_expired'
+bo_db_user_status unlock_expired | grep -qx expired
+
+bo_db_user_insert unlock_fail secret 00000000-0000-0000-0000-000000000010 unlock_fail@example 0 active 100 101
+bo_xray_api() {
+  return 1
+}
+if bo_user_unlock unlock_fail >/dev/null 2>&1; then
+  echo "expired active unlock succeeded despite remove failure" >&2
+  exit 1
+fi
+bo_db_user_status unlock_fail | grep -qx active
+bo_db_user_set_status unlock_fail locked
+
+bo_xray_api() {
+  bo_xray_events="${bo_xray_events}$*"$'\n'
+}
 bo_db_user_insert expired secret 00000000-0000-0000-0000-000000000002 expired@example 0 active 100 101
 bo_user_expire | grep -qx expired
 bo_db_user_status expired | grep -qx expired
