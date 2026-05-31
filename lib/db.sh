@@ -8,6 +8,10 @@ bo_sql_quote() {
   printf "%s" "$1" | sed "s/'/''/g"
 }
 
+bo_db_is_integer() {
+  [[ "${1:-}" =~ ^[0-9]+$ ]]
+}
+
 bo_db_init() {
   mkdir -p "$(dirname "$BLACKOUT_DB")"
   sqlite3 "$BLACKOUT_DB" <<'SQL'
@@ -55,6 +59,9 @@ bo_setting_set() {
 }
 
 bo_db_user_insert() {
+  bo_db_is_integer "$5" || return 1
+  bo_db_is_integer "$7" || return 1
+  bo_db_is_integer "$8" || return 1
   sqlite3 "$BLACKOUT_DB" "INSERT INTO users(username,password,uuid,email,level,status,created_at,expires_at,updated_at) VALUES('$(bo_sql_quote "$1")','$(bo_sql_quote "$2")','$(bo_sql_quote "$3")','$(bo_sql_quote "$4")',$5,'$(bo_sql_quote "$6")',$7,$8,$(date +%s));"
 }
 
@@ -80,15 +87,18 @@ bo_db_users_list() {
 
 bo_db_active_usernames() {
   local now="${1:-$(date +%s)}"
+  bo_db_is_integer "$now" || return 1
   sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' AND expires_at > $now ORDER BY username;"
 }
 
 bo_db_expired_active_usernames() {
   local now="${1:-$(date +%s)}"
+  bo_db_is_integer "$now" || return 1
   sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' AND expires_at <= $now ORDER BY username;"
 }
 
 bo_db_user_update() {
   local username="$1" password="$2" expires_at="$3"
+  bo_db_is_integer "$expires_at" || return 1
   sqlite3 "$BLACKOUT_DB" "UPDATE users SET password='$(bo_sql_quote "$password")', expires_at=$expires_at, updated_at=$(date +%s) WHERE username='$(bo_sql_quote "$username")';"
 }

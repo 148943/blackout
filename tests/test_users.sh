@@ -14,7 +14,23 @@ BLACKOUT_DB="$tmpdb"
 
 bo_xray_events=""
 bo_xray_api() {
-  bo_xray_events="${bo_xray_events}$*"$'\n'
+  case "${1:-}" in
+    adu)
+      [ -f "${2:-}" ]
+      grep -q '"tag": "vless"' "$2"
+      grep -q '"protocol": "vless"' "$2"
+      grep -q '"id": "00000000-0000-0000-0000-000000000001"' "$2"
+      grep -q '"email": "aiman"' "$2"
+      grep -q '"level": 0' "$2"
+      bo_xray_events="${bo_xray_events}adu:$2"$'\n'
+      ;;
+    rmu)
+      bo_xray_events="${bo_xray_events}$*"$'\n'
+      ;;
+    *)
+      bo_xray_events="${bo_xray_events}$*"$'\n'
+      ;;
+  esac
 }
 bo_xray_user_stats() {
   bo_xray_events="${bo_xray_events}stats:$1"$'\n'
@@ -26,7 +42,10 @@ bo_setting_set active_inbound vless
 
 bo_user_add aiman secret 00000000-0000-0000-0000-000000000001 4102444800
 bo_db_user_status aiman | grep -qx active
-printf '%s' "$bo_xray_events" | grep -qx 'handlerservice adu --tag vless --email aiman --level 0 --uuid 00000000-0000-0000-0000-000000000001'
+printf '%s' "$bo_xray_events" | grep -Eq '^adu:'
+adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu://p' | head -n 1)"
+[ -n "$adu_file" ]
+[ ! -e "$adu_file" ]
 
 before_events="$bo_xray_events"
 if bo_user_add aiman secret 00000000-0000-0000-0000-000000000004 4102444800 2>/dev/null; then
@@ -46,10 +65,33 @@ if bo_user_add invalid secret 00000000-0000-0000-0000-000000000007 nope 2>/dev/n
   exit 1
 fi
 [ "$bo_xray_events" = "$before_events" ]
+if bo_user_add badlevel secret 00000000-0000-0000-0000-000000000011 4102444800 '0);DROP TABLE users;--' 2>/dev/null; then
+  echo "malicious level add succeeded" >&2
+  exit 1
+fi
+[ "$bo_xray_events" = "$before_events" ]
+
+if bo_db_user_insert injected secret 00000000-0000-0000-0000-000000000012 injected@example '0);DROP TABLE users;--' active 100 200 2>/dev/null; then
+  echo "malicious db insert succeeded" >&2
+  exit 1
+fi
+sqlite3 "$BLACKOUT_DB" "select name from sqlite_master where type='table' and name='users';" | grep -qx users
+
+if bo_user_lock ghost 2>/dev/null; then
+  echo "ghost lock succeeded" >&2
+  exit 1
+fi
+[ "$bo_xray_events" = "$before_events" ]
+
+if bo_user_remove ghost 2>/dev/null; then
+  echo "ghost remove succeeded" >&2
+  exit 1
+fi
+[ "$bo_xray_events" = "$before_events" ]
 
 bo_user_lock aiman
 bo_db_user_status aiman | grep -qx locked
-printf '%s' "$bo_xray_events" | grep -qx 'handlerservice rmu --tag vless --email aiman'
+printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless aiman'
 
 bo_user_unlock aiman
 bo_db_user_status aiman | grep -qx active
@@ -67,7 +109,7 @@ if bo_user_link stale >/dev/null 2>&1; then
   echo "expired active user received link" >&2
   exit 1
 fi
-printf '%s' "$bo_xray_events" | grep -qx 'handlerservice rmu --tag vless --email stale'
+printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless stale'
 bo_db_user_status stale | grep -qx expired
 
 bo_db_user_insert stale_fail secret 00000000-0000-0000-0000-000000000008 stale_fail@example 0 active 100 101
@@ -97,7 +139,7 @@ if bo_user_unlock unlock_expired >/dev/null 2>&1; then
   echo "expired active unlock succeeded" >&2
   exit 1
 fi
-printf '%s' "$bo_xray_events" | grep -qx 'handlerservice rmu --tag vless --email unlock_expired'
+printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless unlock_expired'
 bo_db_user_status unlock_expired | grep -qx expired
 
 bo_db_user_insert unlock_fail secret 00000000-0000-0000-0000-000000000010 unlock_fail@example 0 active 100 101

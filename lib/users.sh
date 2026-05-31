@@ -54,19 +54,39 @@ bo_user_setting() {
 }
 
 bo_user_active_inbound() {
-  bo_user_setting active_inbound vless-ws
+  bo_user_setting active_inbound vless
 }
 
 bo_xray_add_user() {
-  local username="$1" uuid="$2" level="${3:-0}" tag
+  local username="$1" uuid="$2" level="${3:-0}" tag tmp
+  [[ "$level" =~ ^[0-9]+$ ]] || return 1
   tag="$(bo_user_active_inbound)" || return 1
-  bo_xray_api handlerservice adu --tag "$tag" --email "$username" --level "$level" --uuid "$uuid"
+  tmp="$(mktemp)" || return 1
+  {
+    printf '{\n'
+    printf '  "tag": "%s",\n' "$tag"
+    printf '  "protocol": "vless",\n'
+    printf '  "settings": {\n'
+    printf '    "clients": [\n'
+    printf '      {"id": "%s", "email": "%s", "level": %s}\n' "$uuid" "$username" "$level"
+    printf '    ],\n'
+    printf '    "decryption": "none"\n'
+    printf '  }\n'
+    printf '}\n'
+  } >"$tmp" || {
+    rm -f "$tmp"
+    return 1
+  }
+  bo_xray_api adu "$tmp"
+  local status=$?
+  rm -f "$tmp"
+  return "$status"
 }
 
 bo_xray_remove_user() {
   local username="$1" tag
   tag="$(bo_user_active_inbound)" || return 1
-  bo_xray_api handlerservice rmu --tag "$tag" --email "$username"
+  bo_xray_api rmu "-tag=$tag" "$username"
 }
 
 bo_user_add() {
@@ -78,6 +98,10 @@ bo_user_add() {
   fi
   if ! [[ "$expires_at" =~ ^[0-9]+$ ]]; then
     printf 'expires_at must be numeric\n' >&2
+    return 1
+  fi
+  if ! [[ "$level" =~ ^[0-9]+$ ]]; then
+    printf 'level must be numeric\n' >&2
     return 1
   fi
   now="$(date +%s)" || return 1
@@ -110,15 +134,25 @@ bo_user_add_prompt() {
 }
 
 bo_user_lock() {
-  local username="$1"
+  local username="$1" row
   bo_user_validate_username "$username" || return 1
+  row="$(bo_db_user_get "$username")" || return 1
+  if [ -z "$row" ]; then
+    printf 'unknown user: %s\n' "$username" >&2
+    return 1
+  fi
   bo_xray_remove_user "$username" || return 1
   bo_db_user_set_status "$username" locked || return 1
 }
 
 bo_user_remove() {
-  local username="$1"
+  local username="$1" row
   bo_user_validate_username "$username" || return 1
+  row="$(bo_db_user_get "$username")" || return 1
+  if [ -z "$row" ]; then
+    printf 'unknown user: %s\n' "$username" >&2
+    return 1
+  fi
   bo_xray_remove_user "$username" || return 1
   bo_db_user_delete "$username" || return 1
 }
