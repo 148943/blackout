@@ -122,12 +122,21 @@ bo_xray_install_version() {
   bo_need_root
   local version="${1:-latest}" tmp zip
   tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
-  zip="$(bo_xray_download "$version" "$tmp")"
-  unzip -o "$zip" -d "$tmp/xray" >/dev/null
-  install -Dm755 "$tmp/xray/xray" /usr/local/bin/xray
+  if ! zip="$(bo_xray_download "$version" "$tmp")"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  if ! unzip -o "$zip" -d "$tmp/xray" >/dev/null; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  if ! install -Dm755 "$tmp/xray/xray" /usr/local/bin/xray; then
+    rm -rf "$tmp"
+    return 1
+  fi
   [ -f "$tmp/xray/geoip.dat" ] && install -Dm644 "$tmp/xray/geoip.dat" /usr/local/share/xray/geoip.dat
   [ -f "$tmp/xray/geosite.dat" ] && install -Dm644 "$tmp/xray/geosite.dat" /usr/local/share/xray/geosite.dat
+  rm -rf "$tmp"
   [ "${BLACKOUT_XRAY_NO_RESTART:-0}" = "1" ] && return 0
   systemctl restart xray
   bo_xray_sync_active_users || return 1

@@ -242,6 +242,13 @@ bo_xray_install_version v9.9.9
 grep -q 'systemctl restart xray' "$install_log"
 [ "$sync_calls" -eq 1 ]
 
+BLACKOUT_XRAY_NO_RESTART=1
+bo_test_xray_install_wrapper() {
+  bo_xray_install_version v9.9.9
+}
+bo_test_xray_install_wrapper
+unset BLACKOUT_XRAY_NO_RESTART
+
 bo_user_sync_active_to_xray() {
   return 37
 }
