@@ -18,12 +18,33 @@ bo_update_branch() {
 }
 
 bo_update_check() {
-  local repo branch remote
+  local repo branch remote installed
   repo="$(bo_update_repo)"
   branch="$(bo_update_branch)"
   remote="$(git ls-remote "$repo" "refs/heads/$branch" | awk '{print $1}')"
-  bo_log "installed: ${BLACKOUT_VERSION:-dev}"
+  installed="${BLACKOUT_VERSION:-dev}"
+  bo_log "installed: $installed"
   bo_log "remote $branch: ${remote:-unknown}"
+  if [ -z "$remote" ]; then
+    bo_log "status: unable to check remote version"
+  elif [ "$installed" = "$remote" ]; then
+    bo_log "status: installed version is latest"
+  elif [ "$installed" = "dev" ]; then
+    bo_log "status: installed version unknown; run blackout update to record the current commit"
+  else
+    bo_log "status: update available"
+  fi
+}
+
+bo_update_write_version() {
+  local env_file="${BLACKOUT_ENV:-/etc/blackout/blackout.env}" version="$1"
+  [ -n "$version" ] || return 0
+  mkdir -p "$(dirname "$env_file")"
+  if [ -f "$env_file" ] && grep -q '^BLACKOUT_VERSION=' "$env_file"; then
+    sed -i "s#^BLACKOUT_VERSION=.*#BLACKOUT_VERSION=\"$version\"#" "$env_file"
+  else
+    printf 'BLACKOUT_VERSION="%s"\n' "$version" >>"$env_file"
+  fi
 }
 
 bo_update_copy_tree() {
@@ -37,9 +58,11 @@ bo_update_copy_tree() {
 
 bo_update_run() {
   bo_need_root
-  local repo branch update_tmp backup bin_path install_dir
+  local repo branch remote update_tmp backup bin_path install_dir
   repo="$(bo_update_repo)"
   branch="$(bo_update_branch)"
+  remote="$(git ls-remote "$repo" "refs/heads/$branch" | awk '{print $1}')"
+  [ -n "$remote" ] || bo_fail "unable to resolve remote version for $repo@$branch"
   bin_path="${BLACKOUT_BIN_PATH:-/usr/local/bin/blackout}"
   install_dir="${BLACKOUT_INSTALL_DIR:-/opt/blackout}"
 
@@ -53,8 +76,9 @@ bo_update_run() {
 
   install -Dm755 "$update_tmp/src/blackout" "$bin_path"
   bo_update_copy_tree "$update_tmp/src" "$install_dir"
+  bo_update_write_version "$remote"
   rm -rf "$update_tmp"
-  bo_log "updated Blackout from $repo@$branch"
+  bo_log "updated Blackout from $repo@$branch ($remote)"
 }
 
 bo_update_cmd() {

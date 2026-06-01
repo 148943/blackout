@@ -91,13 +91,13 @@ Blackout script updates are separate from Xray core updates.
 blackout update check
 ```
 
-`blackout update check` is read-only. It uses `git ls-remote` to print the installed Blackout version and the remote commit for the configured branch. It does not change installed files.
+`blackout update check` is read-only. It uses `git ls-remote` to print the installed Blackout version, the remote commit for the configured branch, and whether the install is latest or has an update available. It does not change installed files.
 
 ```bash
 blackout update
 ```
 
-`blackout update` updates the Blackout scripts and config templates only. It clones the configured Blackout repository, backs up the current CLI/install tree, replaces `/usr/local/bin/blackout`, `lib/`, and `configs/`, and leaves users, certificates, domain settings, and the installed Xray core untouched.
+`blackout update` updates the Blackout scripts and config templates only. It clones the configured Blackout repository, backs up the current CLI/install tree, replaces `/usr/local/bin/blackout`, `lib/`, and `configs/`, records the installed Blackout commit in `/etc/blackout/blackout.env`, and leaves users, certificates, domain settings, and the installed Xray core untouched.
 
 ## Updating Xray Core
 

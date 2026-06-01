@@ -96,5 +96,5 @@ blackout update check
 blackout update
 ```
 
-- `update check`: read-only. Prints the installed Blackout version and remote branch commit. It does not modify files.
-- `update`: updates Blackout scripts and config templates from the configured repository and branch. It does not update Xray core.
+- `update check`: read-only. Prints the installed Blackout version, remote branch commit, and status such as latest, update available, or unknown installed version. It does not modify files.
+- `update`: updates Blackout scripts and config templates from the configured repository and branch, then records the installed commit in `/etc/blackout/blackout.env`. It does not update Xray core.

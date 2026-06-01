@@ -53,7 +53,17 @@ export BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
 check_output="$(bo_update_check)"
 grep -q 'installed: test-version' <<<"$check_output"
 grep -q 'remote master: 0123456789abcdef0123456789abcdef01234567' <<<"$check_output"
+grep -q 'status: update available' <<<"$check_output"
 grep -q 'git ls-remote https://github.com/148943/blackout.git refs/heads/master' "$BLACKOUT_TEST_LOG"
+
+BLACKOUT_VERSION="0123456789abcdef0123456789abcdef01234567"
+check_output="$(bo_update_check)"
+grep -q 'status: installed version is latest' <<<"$check_output"
+
+BLACKOUT_VERSION="dev"
+check_output="$(bo_update_check)"
+grep -q 'status: installed version unknown; run blackout update to record the current commit' <<<"$check_output"
+BLACKOUT_VERSION="test-version"
 
 BLACKOUT_REPO="git@github.com:148943/blackout.git"
 [ "$(bo_update_repo)" = "https://github.com/148943/blackout.git" ]
@@ -65,12 +75,13 @@ bin_path="$tmp/usr/local/bin/blackout"
 mkdir -p "$(dirname "$bin_path")" "$install_dir/lib" "$install_dir/configs" "$tmp/etc/blackout" "$tmp/var/lib/blackout"
 printf 'old cli\n' >"$bin_path"
 printf 'old lib\n' >"$install_dir/lib/old.sh"
-printf 'domain should remain\n' >"$tmp/etc/blackout/blackout.env"
+printf 'BLACKOUT_DOMAIN="domain should remain"\nBLACKOUT_VERSION="old"\n' >"$tmp/etc/blackout/blackout.env"
 printf 'db should remain\n' >"$tmp/var/lib/blackout/blackout.db"
 
 export BLACKOUT_BIN_PATH="$bin_path"
 export BLACKOUT_INSTALL_DIR="$install_dir"
 export BLACKOUT_BACKUP_DIR="$backup_dir"
+export BLACKOUT_ENV="$tmp/etc/blackout/blackout.env"
 
 bo_update_cmd run
 
@@ -78,7 +89,8 @@ bo_update_cmd run
 [ -f "$install_dir/lib/common.sh" ]
 [ -f "$install_dir/configs/vless-ws-nginx/xray.conf" ]
 [ ! -e "$install_dir/lib/old.sh" ]
-[ "$(cat "$tmp/etc/blackout/blackout.env")" = "domain should remain" ]
+grep -q 'BLACKOUT_DOMAIN="domain should remain"' "$BLACKOUT_ENV"
+grep -q 'BLACKOUT_VERSION="0123456789abcdef0123456789abcdef01234567"' "$BLACKOUT_ENV"
 [ "$(cat "$tmp/var/lib/blackout/blackout.db")" = "db should remain" ]
 find "$backup_dir" -type f -name blackout | grep -q .
 find "$backup_dir" -type f -name old.sh | grep -q .
