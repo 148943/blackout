@@ -217,13 +217,67 @@ bo_user_list() {
   bo_db_users_list || return 1
 }
 
+bo_user_format_bytes() {
+  local bytes="$1"
+  awk -v bytes="$bytes" 'BEGIN {
+    split("B KiB MiB GiB TiB", units, " ")
+    value = bytes + 0
+    unit = 1
+    while (value >= 1024 && unit < 5) {
+      value = value / 1024
+      unit++
+    }
+    if (unit == 1) {
+      printf "%d %s", value, units[unit]
+    } else {
+      printf "%.1f %s", value, units[unit]
+    }
+  }'
+}
+
+bo_user_stat_value() {
+  local stats="$1" username="$2" direction="$3"
+  if command -v jq >/dev/null 2>&1 && jq -e . >/dev/null 2>&1 <<<"$stats"; then
+    jq -r --arg name "user>>>$username>>>traffic>>>$direction" \
+      '[.stat[]? | select(.name == $name) | .value] | first // 0' <<<"$stats"
+    return
+  fi
+  awk -v name="user>>>$username>>>traffic>>>$direction" '
+    index($0, name) {
+      seen = 1
+      for (i = 1; i <= NF; i++) {
+        if ($i == "value:") {
+          print $(i + 1)
+          found = 1
+          exit
+        }
+      }
+    }
+    seen && match($0, /"value"[[:space:]]*:[[:space:]]*([0-9]+)/, parts) {
+      print parts[1]
+      found = 1
+      exit
+    }
+    END {
+      if (!found) print 0
+    }
+  ' <<<"$stats"
+}
+
 bo_user_online() {
-  local username usernames
+  local username usernames stats uplink downlink total
   usernames="$(bo_db_active_usernames)" || return 1
   while IFS= read -r username; do
     [ -n "$username" ] || continue
-    printf '%s\t' "$username"
-    bo_xray_user_stats "$username" || return 1
+    stats="$(bo_xray_user_stats "$username")" || return 1
+    uplink="$(bo_user_stat_value "$stats" "$username" uplink)"
+    downlink="$(bo_user_stat_value "$stats" "$username" downlink)"
+    total=$((uplink + downlink))
+    printf '%s  uplink=%s  downlink=%s  total=%s\n' \
+      "$username" \
+      "$(bo_user_format_bytes "$uplink")" \
+      "$(bo_user_format_bytes "$downlink")" \
+      "$(bo_user_format_bytes "$total")"
   done <<<"$usernames"
 }
 

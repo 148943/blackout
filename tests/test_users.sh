@@ -44,7 +44,20 @@ PY
 }
 bo_xray_user_stats() {
   bo_xray_events="${bo_xray_events}stats:$1"$'\n'
-  printf 'stat: user>>>%s>>>traffic>>>uplink value: 42\n' "$1"
+  cat <<JSON
+{
+  "stat": [
+    {
+      "name": "user>>>$1>>>traffic>>>downlink",
+      "value": 2270428
+    },
+    {
+      "name": "user>>>$1>>>traffic>>>uplink",
+      "value": 851737
+    }
+  ]
+}
+JSON
 }
 
 bo_db_init
@@ -130,7 +143,7 @@ bo_setting_set domain vpn.example
 bo_setting_set ws_path /vless
 bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
 
-bo_user_online | grep -q 'aiman'
+bo_user_online | grep -qx 'aiman  uplink=831.8 KiB  downlink=2.2 MiB  total=3.0 MiB'
 
 bo_db_user_insert stale 00000000-0000-0000-0000-000000000006 stale@example 0 active 100 101
 bo_xray_events=""
