@@ -67,13 +67,7 @@ blackout user online 10
 
 `expire` finds active users whose `expires_at` timestamp has passed, removes them from Xray runtime state, and marks them `expired`.
 
-Fresh installs enable expiry automation through `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes. Manage it with:
-
-```bash
-blackout automation expire status
-blackout automation expire install
-blackout automation expire remove
-```
+Fresh installs create `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes.
 
 `online` samples Xray stats for active users and only prints users whose traffic counters increased during the sample window. The default sample window is 5 seconds. Pass a number of seconds to change it, for example `blackout user online 10`.
 

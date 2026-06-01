@@ -15,8 +15,6 @@ BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
 . "$ROOT_DIR/lib/certs.sh"
 # shellcheck disable=SC1091
 . "$ROOT_DIR/lib/configs.sh"
-# shellcheck disable=SC1091
-. "$ROOT_DIR/lib/automation.sh"
 
 bo_install_run() {
   if [ "${BLACKOUT_DRY_RUN:-0}" = "1" ]; then
@@ -55,6 +53,19 @@ bo_install_copy_tree() {
   cp -a "$src/configs" "$install_dir/configs"
 }
 
+bo_install_expire_cron() {
+  local cron_file="${BLACKOUT_EXPIRE_CRON:-/etc/cron.d/blackout-expire}" bin_path="${BLACKOUT_BIN_PATH:-/usr/local/bin/blackout}"
+  mkdir -p "$(dirname "$cron_file")"
+  cat >"$cron_file" <<EOF_CRON
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/5 * * * * root $bin_path user expire >>/var/log/blackout-expire.log 2>&1
+EOF_CRON
+  chmod 0644 "$cron_file"
+  bo_log "installed expiry cron: $cron_file"
+}
+
 bo_install_write_env() {
   local env_file="$1" install_dir="$2" lib_dir="$3" config_dir="$4" db_path="$5" etc_dir="${6:-/etc/blackout}" state_dir="${7:-/var/lib/blackout}" xray_config="${8:-/etc/xray/config.json}"
   mkdir -p "$(dirname "$env_file")"
@@ -91,7 +102,7 @@ bo_install_prepare_xray() {
   BLACKOUT_XRAY_NO_RESTART=1 bo_install_xray_initial
   unset BLACKOUT_XRAY_NO_RESTART
   bo_config_switch vless-ws-nginx
-  bo_automation_expire_install
+  bo_install_expire_cron
 }
 
 bo_install_main() {

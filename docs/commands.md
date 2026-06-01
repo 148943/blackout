@@ -59,18 +59,6 @@ blackout xray current
 
 Xray releases are downloaded from official `XTLS/Xray-core` GitHub release ZIP assets. Supported architecture mappings include `x86_64`/`amd64`, `aarch64`/`arm64`, and `armv7l`/`armhf`. Xray core install/update commands restart the Xray service unless test overrides are set.
 
-## Automation
-
-```bash
-blackout automation expire status
-blackout automation expire install
-blackout automation expire remove
-```
-
-- `expire status`: shows whether `/etc/cron.d/blackout-expire` exists.
-- `expire install`: installs a cron job that runs `blackout user expire` every 5 minutes.
-- `expire remove`: removes the expiry cron job.
-
 ## Certificates
 
 ```bash

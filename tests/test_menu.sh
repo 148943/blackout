@@ -27,9 +27,6 @@ bo_config_cmd() {
 bo_update_cmd() {
   printf 'update:%s\n' "$*" >>"$events_file"
 }
-bo_automation_cmd() {
-  printf 'automation:%s\n' "$*" >>"$events_file"
-}
 
 output="$(printf '5\n0\n' | bo_menu)"
 grep -q 'Blackout control panel' <<<"$output"
@@ -54,8 +51,3 @@ grep -qx 'config:ws-path /stealth' "$events_file"
 output="$(printf '4\n5\n0\n0\n' | bo_menu)"
 grep -q 'Config' <<<"$output"
 grep -qx 'config:reload' "$events_file"
-
-: >"$events_file"
-output="$(printf '6\n2\n0\n0\n' | bo_menu)"
-grep -q 'Automation' <<<"$output"
-grep -qx 'automation:expire install' "$events_file"

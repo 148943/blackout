@@ -93,28 +93,11 @@ bo_menu_config() {
   done
 }
 
-bo_menu_automation() {
-  local choice
-  bo_menu_load bo_automation_cmd automation.sh
-  while true; do
-    bo_log "Automation"
-    printf '1) Expire status\n2) Install expire cron\n3) Remove expire cron\n0) Back\n'
-    bo_menu_read 'automation> ' choice || return 0
-    case "$choice" in
-      1) bo_automation_cmd expire status ;;
-      2) bo_automation_cmd expire install ;;
-      3) bo_automation_cmd expire remove ;;
-      0) return 0 ;;
-      *) bo_warn "invalid menu choice: $choice" ;;
-    esac
-  done
-}
-
 bo_menu() {
   local choice
   while true; do
     bo_log "Blackout control panel"
-    printf '1) Users\n2) Xray\n3) Certificates\n4) Config\n5) Update check\n6) Automation\n0) Exit\n'
+    printf '1) Users\n2) Xray\n3) Certificates\n4) Config\n5) Update check\n0) Exit\n'
     bo_menu_read 'blackout> ' choice || return 0
     case "$choice" in
       1) bo_menu_users ;;
@@ -122,7 +105,6 @@ bo_menu() {
       3) bo_menu_certs ;;
       4) bo_menu_config ;;
       5) bo_menu_load bo_update_cmd update.sh; bo_update_cmd check ;;
-      6) bo_menu_automation ;;
       0) return 0 ;;
       *) bo_warn "invalid menu choice: $choice" ;;
     esac

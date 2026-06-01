@@ -136,9 +136,6 @@ grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
 grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"
 
 cron_file="$tmp/etc/cron.d/blackout-expire"
-bo_automation_expire_install() {
-  printf 'automation_expire_install cron=%s bin=%s\n' "$BLACKOUT_EXPIRE_CRON" "$BLACKOUT_BIN_PATH" >>"$install_order"
-}
 
 service_path="$tmp/etc/systemd/system/xray.service"
 config_dir="$tmp/etc/xray"
@@ -177,4 +174,5 @@ rm -rf "$config_dir"
 bo_install_prepare_xray
 grep -q 'xray_initial no_restart=1 service=yes config_dir=yes' "$install_order"
 grep -q 'config_switch no_restart=0 service=yes config_dir=yes' "$install_order"
-grep -q 'automation_expire_install cron='"$cron_file"' bin='"$bin_path" "$install_order"
+[ -f "$cron_file" ]
+grep -q '\*/5 \* \* \* \* root '"$bin_path"' user expire >>/var/log/blackout-expire.log 2>&1' "$cron_file"
