@@ -36,10 +36,10 @@ PY
   esac
 }
 
-bo_db_user_insert active1 secret 00000000-0000-0000-0000-000000000031 active1@example 0 active 100 4102444800
-bo_db_user_insert active2 secret 00000000-0000-0000-0000-000000000032 active2@example 3 active 100 4102444800
-bo_db_user_insert locked secret 00000000-0000-0000-0000-000000000033 locked@example 0 locked 100 4102444800
-bo_db_user_insert expired secret 00000000-0000-0000-0000-000000000034 expired@example 0 active 100 101
+bo_db_user_insert active1 00000000-0000-0000-0000-000000000031 active1@example 0 active 100 4102444800
+bo_db_user_insert active2 00000000-0000-0000-0000-000000000032 active2@example 3 active 100 4102444800
+bo_db_user_insert locked 00000000-0000-0000-0000-000000000033 locked@example 0 locked 100 4102444800
+bo_db_user_insert expired 00000000-0000-0000-0000-000000000034 expired@example 0 active 100 101
 
 bo_user_sync_active_to_xray
 grep -qx 'active1 00000000-0000-0000-0000-000000000031 0' "$BLACKOUT_ETC_DIR/events"

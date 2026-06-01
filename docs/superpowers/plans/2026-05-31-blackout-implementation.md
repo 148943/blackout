@@ -316,7 +316,6 @@ PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
   uuid TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
   level INTEGER NOT NULL DEFAULT 0,
@@ -543,7 +542,7 @@ git commit -m "feat: add profiles nginx and certificates"
 Extend `tests/test_db.sh` with inserting, listing, locking, and expiry status checks using helper functions:
 
 ```bash
-bo_db_user_insert aiman secret 00000000-0000-0000-0000-000000000001 aiman@example 0 active 100 200
+bo_db_user_insert aiman 00000000-0000-0000-0000-000000000001 aiman@example 0 active 100 200
 bo_db_user_status aiman | grep -qx active
 bo_db_user_set_status aiman locked
 bo_db_user_status aiman | grep -qx locked
@@ -562,7 +561,7 @@ Add to `lib/db.sh`:
 ```bash
 bo_sql_quote() { printf "%s" "$1" | sed "s/'/''/g"; }
 bo_db_user_insert() {
-  sqlite3 "$BLACKOUT_DB" "INSERT INTO users(username,password,uuid,email,level,status,created_at,expires_at,updated_at) VALUES('$(bo_sql_quote "$1")','$(bo_sql_quote "$2")','$(bo_sql_quote "$3")','$(bo_sql_quote "$4")',$5,'$(bo_sql_quote "$6")',$7,$8,$(date +%s));"
+  sqlite3 "$BLACKOUT_DB" "INSERT INTO users(username,uuid,email,level,status,created_at,expires_at,updated_at) VALUES('$(bo_sql_quote "$1")','$(bo_sql_quote "$2")','$(bo_sql_quote "$3")',$4,'$(bo_sql_quote "$5")',$6,$7,$(date +%s));"
 }
 bo_db_user_status() {
   sqlite3 "$BLACKOUT_DB" "SELECT status FROM users WHERE username='$(bo_sql_quote "$1")';"
@@ -588,7 +587,7 @@ bo_user_cmd link USERNAME
 bo_user_cmd expire
 ```
 
-`add` prompts for username, password, and duration, generates `uuidgen`, inserts SQLite row, and calls Xray API AddUser. `lock` and `remove` call Xray RemoveUser before final DB status/delete. `link` renders the active profile `share.template`.
+`add` prompts for username and duration, generates `uuidgen`, inserts SQLite row, and calls Xray API AddUser. `lock` and `remove` call Xray RemoveUser before final DB status/delete. `link` renders the active profile `share.template`.
 
 - [ ] **Step 5: Run tests**
 

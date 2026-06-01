@@ -53,7 +53,7 @@ Create the first user:
 blackout user add
 ```
 
-The prompt asks for username, password, and duration such as `12h`, `7d`, or `1m`. Blackout stores the user in SQLite, generates a UUID, and adds the VLESS client to the running Xray instance through the local Xray API.
+The prompt asks for username and duration such as `12h`, `7d`, or `1m`. Blackout stores the user in SQLite, generates a UUID, and adds the VLESS client to the running Xray instance through the local Xray API.
 
 Print the client link:
 
@@ -146,4 +146,3 @@ Common checks:
 - If ACME fails, stop any other service using port `80` and run `blackout cert issue EMAIL DOMAIN` again.
 - If user links fail, confirm the user is active with `blackout user list` and that Xray is running.
 - If runtime user operations fail, confirm the default profile is active and the Xray API is reachable locally.
-

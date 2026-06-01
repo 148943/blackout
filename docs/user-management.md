@@ -25,7 +25,6 @@ blackout user add
 The prompt asks for:
 
 - Username.
-- Password.
 - Duration, for example `12h`, `7d`, `30d`, or `1m`.
 
 Blackout generates a UUID, stores the user in SQLite, and calls Xray API `adu` against the active inbound. If the Xray API add fails, the user row is marked `locked`.
@@ -56,7 +55,7 @@ blackout user remove USERNAME
 blackout user modify USERNAME
 ```
 
-The current implementation prompts for a new password and duration, then updates SQLite. It does not rename users and does not change the existing UUID.
+The current implementation prompts for a new duration, then updates SQLite. It does not rename users and does not change the existing UUID.
 
 ## Expiry And Online Stats
 
@@ -77,5 +76,4 @@ After install, the database is:
 /var/lib/blackout/blackout.db
 ```
 
-The main user fields are username, password, UUID, email, level, status, creation time, expiry time, and update time.
-
+The main user fields are username, UUID, email, level, status, creation time, expiry time, and update time.

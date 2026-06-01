@@ -66,7 +66,7 @@ for cmd in remove modify lock unlock link; do
   [ "$output" = survived ]
 done
 
-bo_user_add aiman secret 00000000-0000-0000-0000-000000000001 4102444800
+bo_user_add aiman 00000000-0000-0000-0000-000000000001 4102444800
 bo_db_user_status aiman | grep -qx active
 printf '%s' "$bo_xray_events" | grep -Eq '^adu:'
 adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu://p' | head -n 1)"
@@ -74,30 +74,30 @@ adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu://p' | head -n 1)"
 [ ! -e "$adu_file" ]
 
 before_events="$bo_xray_events"
-if bo_user_add aiman secret 00000000-0000-0000-0000-000000000004 4102444800 2>/dev/null; then
+if bo_user_add aiman 00000000-0000-0000-0000-000000000004 4102444800 2>/dev/null; then
   echo "duplicate add succeeded" >&2
   exit 1
 fi
 [ "$bo_xray_events" = "$before_events" ]
 
 before_events="$bo_xray_events"
-if bo_user_add past secret 00000000-0000-0000-0000-000000000005 100 2>/dev/null; then
+if bo_user_add past 00000000-0000-0000-0000-000000000005 100 2>/dev/null; then
   echo "past expiry add succeeded" >&2
   exit 1
 fi
 [ "$bo_xray_events" = "$before_events" ]
-if bo_user_add invalid secret 00000000-0000-0000-0000-000000000007 nope 2>/dev/null; then
+if bo_user_add invalid 00000000-0000-0000-0000-000000000007 nope 2>/dev/null; then
   echo "invalid expiry add succeeded" >&2
   exit 1
 fi
 [ "$bo_xray_events" = "$before_events" ]
-if bo_user_add badlevel secret 00000000-0000-0000-0000-000000000011 4102444800 '0);DROP TABLE users;--' 2>/dev/null; then
+if bo_user_add badlevel 00000000-0000-0000-0000-000000000011 4102444800 '0);DROP TABLE users;--' 2>/dev/null; then
   echo "malicious level add succeeded" >&2
   exit 1
 fi
 [ "$bo_xray_events" = "$before_events" ]
 
-if bo_db_user_insert injected secret 00000000-0000-0000-0000-000000000012 injected@example '0);DROP TABLE users;--' active 100 200 2>/dev/null; then
+if bo_db_user_insert injected 00000000-0000-0000-0000-000000000012 injected@example '0);DROP TABLE users;--' active 100 200 2>/dev/null; then
   echo "malicious db insert succeeded" >&2
   exit 1
 fi
@@ -129,7 +129,7 @@ bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.
 
 bo_user_online | grep -q 'aiman'
 
-bo_db_user_insert stale secret 00000000-0000-0000-0000-000000000006 stale@example 0 active 100 101
+bo_db_user_insert stale 00000000-0000-0000-0000-000000000006 stale@example 0 active 100 101
 bo_xray_events=""
 if bo_user_link stale >/dev/null 2>&1; then
   echo "expired active user received link" >&2
@@ -138,7 +138,7 @@ fi
 printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless stale'
 bo_db_user_status stale | grep -qx expired
 
-bo_db_user_insert stale_fail secret 00000000-0000-0000-0000-000000000008 stale_fail@example 0 active 100 101
+bo_db_user_insert stale_fail 00000000-0000-0000-0000-000000000008 stale_fail@example 0 active 100 101
 bo_xray_api() {
   return 1
 }
@@ -159,7 +159,7 @@ if printf '%s' "$bo_xray_events" | grep -q 'stats:stale'; then
   exit 1
 fi
 
-bo_db_user_insert unlock_expired secret 00000000-0000-0000-0000-000000000009 unlock_expired@example 0 active 100 101
+bo_db_user_insert unlock_expired 00000000-0000-0000-0000-000000000009 unlock_expired@example 0 active 100 101
 bo_xray_events=""
 if bo_user_unlock unlock_expired >/dev/null 2>&1; then
   echo "expired active unlock succeeded" >&2
@@ -168,7 +168,7 @@ fi
 printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless unlock_expired'
 bo_db_user_status unlock_expired | grep -qx expired
 
-bo_db_user_insert unlock_fail secret 00000000-0000-0000-0000-000000000010 unlock_fail@example 0 active 100 101
+bo_db_user_insert unlock_fail 00000000-0000-0000-0000-000000000010 unlock_fail@example 0 active 100 101
 bo_xray_api() {
   return 1
 }
@@ -182,14 +182,14 @@ bo_db_user_set_status unlock_fail locked
 bo_xray_api() {
   bo_xray_events="${bo_xray_events}$*"$'\n'
 }
-bo_db_user_insert expired secret 00000000-0000-0000-0000-000000000002 expired@example 0 active 100 101
+bo_db_user_insert expired 00000000-0000-0000-0000-000000000002 expired@example 0 active 100 101
 bo_user_expire | grep -qx expired
 bo_db_user_status expired | grep -qx expired
 
 bo_xray_api() {
   return 1
 }
-if bo_user_add failing secret 00000000-0000-0000-0000-000000000003 4102444800; then
+if bo_user_add failing 00000000-0000-0000-0000-000000000003 4102444800; then
   echo "add succeeded despite xray failure" >&2
   exit 1
 fi

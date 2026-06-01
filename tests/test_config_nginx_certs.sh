@@ -98,9 +98,9 @@ bo_db_init
 bo_setting_set domain example.com
 bo_setting_set ws_path /blackout
 bo_setting_set xray_api_port 60001
-bo_db_user_insert replayed secret 00000000-0000-0000-0000-000000000021 replayed@example 2 active 100 4102444800
-bo_db_user_insert locked secret 00000000-0000-0000-0000-000000000022 locked@example 0 locked 100 4102444800
-bo_db_user_insert expired secret 00000000-0000-0000-0000-000000000023 expired@example 0 active 100 101
+bo_db_user_insert replayed 00000000-0000-0000-0000-000000000021 replayed@example 2 active 100 4102444800
+bo_db_user_insert locked 00000000-0000-0000-0000-000000000022 locked@example 0 locked 100 4102444800
+bo_db_user_insert expired 00000000-0000-0000-0000-000000000023 expired@example 0 active 100 101
 
 [ "$(bo_config_current)" = "vless-ws-nginx" ]
 bo_config_list | grep -qx 'vless-ws-nginx'

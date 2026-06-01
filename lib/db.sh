@@ -19,7 +19,6 @@ PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
   uuid TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
   level INTEGER NOT NULL DEFAULT 0,
@@ -59,10 +58,10 @@ bo_setting_set() {
 }
 
 bo_db_user_insert() {
-  bo_db_is_integer "$5" || return 1
+  bo_db_is_integer "$4" || return 1
+  bo_db_is_integer "$6" || return 1
   bo_db_is_integer "$7" || return 1
-  bo_db_is_integer "$8" || return 1
-  sqlite3 "$BLACKOUT_DB" "INSERT INTO users(username,password,uuid,email,level,status,created_at,expires_at,updated_at) VALUES('$(bo_sql_quote "$1")','$(bo_sql_quote "$2")','$(bo_sql_quote "$3")','$(bo_sql_quote "$4")',$5,'$(bo_sql_quote "$6")',$7,$8,$(date +%s));"
+  sqlite3 "$BLACKOUT_DB" "INSERT INTO users(username,uuid,email,level,status,created_at,expires_at,updated_at) VALUES('$(bo_sql_quote "$1")','$(bo_sql_quote "$2")','$(bo_sql_quote "$3")',$4,'$(bo_sql_quote "$5")',$6,$7,$(date +%s));"
 }
 
 bo_db_user_status() {
@@ -78,7 +77,7 @@ bo_db_user_delete() {
 }
 
 bo_db_user_get() {
-  sqlite3 -separator $'\t' "$BLACKOUT_DB" "SELECT username,password,uuid,email,level,status,created_at,expires_at,updated_at FROM users WHERE username='$(bo_sql_quote "$1")';"
+  sqlite3 -separator $'\t' "$BLACKOUT_DB" "SELECT username,uuid,email,level,status,created_at,expires_at,updated_at FROM users WHERE username='$(bo_sql_quote "$1")';"
 }
 
 bo_db_users_list() {
@@ -104,7 +103,7 @@ bo_db_expired_active_usernames() {
 }
 
 bo_db_user_update() {
-  local username="$1" password="$2" expires_at="$3"
+  local username="$1" expires_at="$2"
   bo_db_is_integer "$expires_at" || return 1
-  sqlite3 "$BLACKOUT_DB" "UPDATE users SET password='$(bo_sql_quote "$password")', expires_at=$expires_at, updated_at=$(date +%s) WHERE username='$(bo_sql_quote "$username")';"
+  sqlite3 "$BLACKOUT_DB" "UPDATE users SET expires_at=$expires_at, updated_at=$(date +%s) WHERE username='$(bo_sql_quote "$username")';"
 }

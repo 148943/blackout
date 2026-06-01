@@ -155,7 +155,6 @@ SQLite lives at `/var/lib/blackout/blackout.db`.
 users
 - id
 - username
-- password
 - uuid
 - email
 - level
@@ -181,7 +180,7 @@ xray_versions
 - binary_path
 ```
 
-The local `password` is management metadata requested by the project owner. VLESS authentication uses the generated UUID.
+VLESS authentication uses the generated UUID.
 
 ## User Management
 
@@ -189,7 +188,6 @@ Creating a user asks for:
 
 ```text
 username
-password
 duration
 ```
 
@@ -200,7 +198,7 @@ User operations:
 ```text
 add       create DB row and call Xray AddUser
 remove    call Xray RemoveUser and remove or archive the DB row
-modify    update username, password, duration, or status and sync Xray state
+modify    update duration or status and sync Xray state
 lock      call Xray RemoveUser and set status to locked
 unlock    call Xray AddUser and set status to active when not expired
 list      show username, status, expiry, and link availability
