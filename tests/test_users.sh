@@ -70,6 +70,7 @@ done
 
 bo_user_add aiman 00000000-0000-0000-0000-000000000001 4102444800
 bo_db_user_status aiman | grep -qx active
+bo_user_list | grep -q '2100-01-01 00:00:00 UTC'
 printf '%s' "$bo_xray_events" | grep -Eq '^adu:'
 adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu://p' | head -n 1)"
 [ -n "$adu_file" ]

@@ -81,7 +81,7 @@ bo_db_user_get() {
 }
 
 bo_db_users_list() {
-  sqlite3 -header -column "$BLACKOUT_DB" "SELECT username,status,expires_at FROM users ORDER BY username;"
+  sqlite3 -header -column "$BLACKOUT_DB" "SELECT username,status,strftime('%Y-%m-%d %H:%M:%S UTC', expires_at, 'unixepoch') AS expires_at FROM users ORDER BY username;"
 }
 
 bo_db_active_usernames() {
