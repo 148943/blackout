@@ -12,7 +12,7 @@ blackout --help
 blackout -h
 ```
 
-- `blackout` or `blackout menu`: prints the interactive control panel menu.
+- `blackout` or `blackout menu`: opens the interactive control panel menu.
 - `blackout help`, `blackout --help`, `blackout -h`: prints command usage.
 
 ## Users
