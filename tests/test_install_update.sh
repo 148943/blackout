@@ -113,7 +113,7 @@ service_path="$tmp/etc/systemd/system/xray.service"
 config_dir="$tmp/etc/xray"
 bo_xray_install_service "$service_path" "$config_dir"
 [ -d "$config_dir" ]
-grep -q 'ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json' "$service_path"
+grep -q "ExecStart=/usr/local/bin/xray run -config $config_dir/config.json" "$service_path"
 grep -q 'Restart=on-failure' "$service_path"
 grep -q 'WantedBy=multi-user.target' "$service_path"
 

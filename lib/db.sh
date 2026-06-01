@@ -91,6 +91,12 @@ bo_db_active_usernames() {
   sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' AND expires_at > $now ORDER BY username;"
 }
 
+bo_db_active_users() {
+  local now="${1:-$(date +%s)}"
+  bo_db_is_integer "$now" || return 1
+  sqlite3 -separator $'\t' "$BLACKOUT_DB" "SELECT username,uuid,level FROM users WHERE status='active' AND expires_at > $now ORDER BY username;"
+}
+
 bo_db_expired_active_usernames() {
   local now="${1:-$(date +%s)}"
   bo_db_is_integer "$now" || return 1

@@ -78,9 +78,16 @@ bo_xray_verify_zip() {
 }
 
 bo_xray_install_service() {
-  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_dir="${2:-$(dirname "$BLACKOUT_XRAY_CONFIG")}"
+  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_dir config_path
+  if [ "$#" -ge 2 ]; then
+    config_dir="$2"
+    config_path="$config_dir/config.json"
+  else
+    config_path="$BLACKOUT_XRAY_CONFIG"
+    config_dir="$(dirname "$config_path")"
+  fi
   mkdir -p "$(dirname "$service_path")" "$config_dir"
-  cat >"$service_path" <<'UNIT'
+  cat >"$service_path" <<UNIT
 [Unit]
 Description=Xray Service
 Documentation=https://github.com/XTLS/Xray-core
@@ -89,7 +96,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
+ExecStart=/usr/local/bin/xray run -config $config_path
 Restart=on-failure
 RestartSec=5s
 LimitNOFILE=1048576
@@ -97,7 +104,7 @@ NoNewPrivileges=true
 PrivateTmp=false
 ProtectHome=true
 ProtectSystem=full
-ReadWritePaths=/etc/xray /etc/blackout /var/lib/blackout /dev/shm
+ReadWritePaths=$config_dir /etc/blackout /var/lib/blackout /dev/shm
 
 [Install]
 WantedBy=multi-user.target
@@ -107,6 +114,14 @@ UNIT
   else
     systemctl daemon-reload
   fi
+}
+
+bo_xray_sync_active_users() {
+  if ! declare -F bo_user_sync_active_to_xray >/dev/null 2>&1; then
+    # shellcheck disable=SC1091
+    . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/users.sh"
+  fi
+  bo_user_sync_active_to_xray
 }
 
 bo_xray_install_version() {
@@ -121,11 +136,33 @@ bo_xray_install_version() {
   [ -f "$tmp/xray/geosite.dat" ] && install -Dm644 "$tmp/xray/geosite.dat" /usr/local/share/xray/geosite.dat
   [ "${BLACKOUT_XRAY_NO_RESTART:-0}" = "1" ] && return 0
   systemctl restart xray
+  bo_xray_sync_active_users || return 1
+}
+
+bo_xray_api_port() {
+  local port="${BLACKOUT_XRAY_API_PORT:-60001}" configured
+  if ! declare -F bo_setting_get >/dev/null 2>&1 && [ -r "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/db.sh" ]; then
+    # shellcheck disable=SC1091
+    . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/db.sh"
+  fi
+  if declare -F bo_setting_get >/dev/null 2>&1; then
+    configured="$(bo_setting_get xray_api_port 2>/dev/null || true)"
+    [ -n "$configured" ] && port="$configured"
+  fi
+  case "$port" in
+    ''|*[!0-9]*)
+      printf 'invalid xray_api_port: %s\n' "$port" >&2
+      return 1
+      ;;
+  esac
+  printf '%s\n' "$port"
 }
 
 bo_xray_api() {
-  local service="$1"; shift
-  xray api "$service" --server=127.0.0.1:60001 "$@"
+  local service="$1" port
+  shift
+  port="$(bo_xray_api_port)" || return 1
+  xray api "$service" --server=127.0.0.1:"$port" "$@"
 }
 
 bo_xray_stat_name() {

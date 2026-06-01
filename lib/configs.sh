@@ -18,7 +18,7 @@ if ! declare -F bo_nginx_install_site >/dev/null 2>&1; then
 fi
 
 BLACKOUT_DEFAULT_PROFILE="${BLACKOUT_DEFAULT_PROFILE:-vless-ws-nginx}"
-BLACKOUT_XRAY_CONFIG="${BLACKOUT_XRAY_CONFIG:-/usr/local/etc/xray/config.json}"
+BLACKOUT_XRAY_CONFIG="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
 
 bo_config_setting() {
   local key="$1" default="${2:-}" value
@@ -97,6 +97,14 @@ bo_config_switch() {
   bo_setting_set xray_api_port "$xray_api_port"
 
   systemctl restart xray
+  if ! declare -F bo_user_sync_active_to_xray >/dev/null 2>&1; then
+    # shellcheck disable=SC1091
+    . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/users.sh"
+  fi
+  if ! bo_user_sync_active_to_xray; then
+    rm -rf "$stage"
+    return 1
+  fi
   bo_nginx_reload
   rm -rf "$stage"
 }

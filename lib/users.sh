@@ -93,6 +93,20 @@ bo_xray_remove_user() {
   bo_xray_api rmu "-tag=$tag" "$username"
 }
 
+bo_user_sync_active_to_xray() {
+  local rows username uuid level now
+  [ -e "${BLACKOUT_DB:-}" ] || return 0
+  now="$(date +%s)" || return 1
+  rows="$(bo_db_active_users "$now")" || return 1
+  while IFS=$'\t' read -r username uuid level; do
+    [ -n "${username:-}" ] || continue
+    if ! bo_xray_add_user "$username" "$uuid" "$level"; then
+      printf 'failed to replay active user to xray: %s\n' "$username" >&2
+      return 1
+    fi
+  done <<<"$rows"
+}
+
 bo_user_add() {
   local username="$1" password="$2" uuid="$3" expires_at="$4" level="${5:-0}" now email
   bo_user_validate_username "$username" || return 1

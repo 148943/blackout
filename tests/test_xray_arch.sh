@@ -22,6 +22,25 @@ fi
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
+bin="$tmpdir/bin"
+mkdir -p "$bin"
+cat >"$bin/xray" <<'SH'
+#!/usr/bin/env bash
+printf 'xray %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+SH
+chmod +x "$bin/xray"
+export PATH="$bin:$PATH"
+export BLACKOUT_TEST_LOG="$tmpdir/calls.log"
+
+BLACKOUT_XRAY_API_PORT=61001 bo_xray_api statsquery --pattern sample
+grep -q 'xray api statsquery --server=127.0.0.1:61001 --pattern sample' "$BLACKOUT_TEST_LOG"
+
+bo_setting_get() {
+  [ "$1" = xray_api_port ] && printf '62002\n'
+}
+bo_xray_api statsquery --pattern configured
+grep -q 'xray api statsquery --server=127.0.0.1:62002 --pattern configured' "$BLACKOUT_TEST_LOG"
+
 bo_trace() { printf 'trace: %s\n' "$*"; }
 bo_warn() { printf 'warn: %s\n' "$*" >&2; }
 
@@ -157,3 +176,76 @@ download_status=0
 download_out="$(bo_xray_download v1.0.0 "$tmpdir/download-fail" 2>/dev/null)" || download_status=$?
 [ "$download_status" -ne 0 ]
 [ -z "$download_out" ]
+
+install_log="$tmpdir/install.log"
+bo_need_root() {
+  :
+}
+id() {
+  if [ "${1:-}" = "-u" ]; then
+    printf '0\n'
+  else
+    command id "$@"
+  fi
+}
+systemctl() {
+  printf 'systemctl %s\n' "$*" >>"$install_log"
+}
+unzip() {
+  local zip="" dest="" next_dest=0 arg
+  for arg in "$@"; do
+    if [ "$next_dest" -eq 1 ]; then
+      dest="$arg"
+      next_dest=0
+      continue
+    fi
+    case "$arg" in
+      -d) next_dest=1 ;;
+      -*) ;;
+      *) zip="$arg" ;;
+    esac
+  done
+  python3 - "$zip" "$dest" <<'PY'
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    archive.extractall(sys.argv[2])
+PY
+}
+install() {
+  local args=("$@") dest="${@: -1}"
+  case "$dest" in
+    /usr/local/bin/xray) args[$(($# - 1))]="$tmpdir/usr/local/bin/xray" ;;
+    /usr/local/share/xray/geoip.dat) args[$(($# - 1))]="$tmpdir/usr/local/share/xray/geoip.dat" ;;
+    /usr/local/share/xray/geosite.dat) args[$(($# - 1))]="$tmpdir/usr/local/share/xray/geosite.dat" ;;
+  esac
+  command install "${args[@]}"
+}
+bo_xray_download() {
+  local zip="$2/Xray-linux-64.zip"
+  python3 - "$zip" <<'PY'
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1], "w") as archive:
+    archive.writestr("xray", "binary\n")
+    archive.writestr("geoip.dat", "geoip\n")
+PY
+  printf '%s\n' "$zip"
+}
+sync_calls=0
+bo_user_sync_active_to_xray() {
+  sync_calls=$((sync_calls + 1))
+}
+bo_xray_install_version v9.9.9
+grep -q 'systemctl restart xray' "$install_log"
+[ "$sync_calls" -eq 1 ]
+
+bo_user_sync_active_to_xray() {
+  return 37
+}
+if bo_xray_install_version v9.9.10 >/dev/null 2>&1; then
+  echo "xray install succeeded despite replay failure" >&2
+  exit 1
+fi

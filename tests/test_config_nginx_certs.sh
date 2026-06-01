@@ -26,6 +26,27 @@ fi
 SH
 chmod +x "$bin/nginx"
 
+cat >"$bin/xray" <<'SH'
+#!/usr/bin/env bash
+printf 'xray %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+case " $* " in
+  *" api adu "*)
+    config="${@: -1}"
+    python3 - "$config" >>"$BLACKOUT_TEST_LOG" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    config = json.load(config_file)
+
+client = config["inbounds"][0]["settings"]["clients"][0]
+print(f"replayed {client['email']} {client['id']} {client['level']}")
+PY
+    ;;
+esac
+SH
+chmod +x "$bin/xray"
+
 cat >"$bin/jq" <<'SH'
 #!/usr/bin/env bash
 printf 'jq %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
@@ -77,6 +98,9 @@ bo_db_init
 bo_setting_set domain example.com
 bo_setting_set ws_path /blackout
 bo_setting_set xray_api_port 60001
+bo_db_user_insert replayed secret 00000000-0000-0000-0000-000000000021 replayed@example 2 active 100 4102444800
+bo_db_user_insert locked secret 00000000-0000-0000-0000-000000000022 locked@example 0 locked 100 4102444800
+bo_db_user_insert expired secret 00000000-0000-0000-0000-000000000023 expired@example 0 active 100 101
 
 [ "$(bo_config_current)" = "vless-ws-nginx" ]
 bo_config_list | grep -qx 'vless-ws-nginx'
@@ -106,8 +130,13 @@ PY
 [ "$rendered_inbound" = "$(bo_user_active_inbound)" ]
 grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'systemctl restart xray' "$BLACKOUT_TEST_LOG"
+grep -q 'replayed replayed 00000000-0000-0000-0000-000000000021 2' "$BLACKOUT_TEST_LOG"
+if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired ' "$BLACKOUT_TEST_LOG"; then
+  echo "inactive user replayed after config restart" >&2
+  exit 1
+fi
 grep -q 'systemctl reload nginx' "$BLACKOUT_TEST_LOG"
 
 before_nginx="$(cat "$tmp/etc/nginx/sites-available/blackout")"
