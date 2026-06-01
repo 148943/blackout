@@ -35,7 +35,7 @@ Blackout generates a UUID, stores the user in SQLite, and calls Xray API `adu` a
 blackout user link USERNAME
 ```
 
-The user must be `active` and not expired. The link is rendered from the current profile share template. For `vless-ws-nginx`, the link is a VLESS WebSocket TLS URL using the stored domain and WebSocket path.
+The user must be `active` and not expired. Links are rendered from the current profile share template. A template can contain one raw link or multiple named link pairs. For `vless-ws-nginx`, the default link is a VLESS WebSocket TLS URL using the stored domain and WebSocket path.
 
 ## Lock, Unlock, Remove
 

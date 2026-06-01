@@ -154,6 +154,19 @@ bo_setting_set profile vless-ws-nginx
 bo_setting_set domain vpn.example
 bo_setting_set ws_path /vless
 bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
+cat >"$BLACKOUT_ETC_DIR/share.template" <<'TPL'
+VLESS WS TLS
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+
+Clash Meta
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}-clash
+TPL
+bo_user_link aiman >"$BLACKOUT_ETC_DIR/links.out"
+grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/links.out"
+grep -qx 'Clash Meta:' "$BLACKOUT_ETC_DIR/links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman-clash' "$BLACKOUT_ETC_DIR/links.out"
+rm -f "$BLACKOUT_ETC_DIR/share.template" "$BLACKOUT_ETC_DIR/links.out"
 
 BLACKOUT_TEST_ONLINE_COUNTER="$BLACKOUT_ETC_DIR/online-counter"
 printf '0\n' >"$BLACKOUT_TEST_ONLINE_COUNTER"

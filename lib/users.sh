@@ -317,8 +317,27 @@ bo_user_share_template() {
   printf '%s\n' "$template"
 }
 
+bo_user_print_links() {
+  local rendered="$1" non_empty line name link count
+  non_empty="$(awk 'NF { print }' <<<"$rendered")"
+  count="$(wc -l <<<"$non_empty" | tr -d ' ')"
+  if [ "$count" -le 1 ]; then
+    printf '%s\n' "$non_empty"
+    return
+  fi
+  while IFS= read -r name; do
+    IFS= read -r link || link=""
+    [ -n "$name" ] || continue
+    if [ -z "$link" ]; then
+      printf '%s\n' "$name"
+    else
+      printf '%s:\n%s\n\n' "$name" "$link"
+    fi
+  done <<<"$non_empty"
+}
+
 bo_user_link() {
-  local username="$1" row uuid email level status created_at expires_at updated_at domain ws_path template now
+  local username="$1" row uuid email level status created_at expires_at updated_at domain ws_path template now rendered
   bo_user_validate_username "$username" || return 1
   row="$(bo_db_user_get "$username")" || return 1
   if [ -z "$row" ]; then
@@ -343,8 +362,8 @@ bo_user_link() {
   fi
   ws_path="$(bo_user_setting ws_path /vless)" || return 1
   template="$(bo_user_share_template)" || return 1
-  bo_render_template "$template" UUID "$uuid" DOMAIN "$domain" WS_PATH "$ws_path" USERNAME "$username" || return 1
-  printf '\n'
+  rendered="$(bo_render_template "$template" UUID "$uuid" DOMAIN "$domain" WS_PATH "$ws_path" USERNAME "$username")" || return 1
+  bo_user_print_links "$rendered"
 }
 
 bo_user_expire() {

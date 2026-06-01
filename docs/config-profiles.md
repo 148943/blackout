@@ -24,6 +24,22 @@ share.template
 
 Templates use Blackout placeholders such as `{{DOMAIN}}`, `{{WS_PATH}}`, `{{XRAY_API_PORT}}`, `{{UUID}}`, and `{{USERNAME}}`.
 
+## Share Templates
+
+`share.template` can be either a single raw link or multiple named links. A single-line template is printed as-is for backward compatibility.
+
+For named links, use pairs of non-empty lines:
+
+```text
+VLESS WS TLS
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+
+Clash Meta
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}-clash
+```
+
+`blackout user link USERNAME` prints each pair as a titled link block.
+
 ## Default Profile
 
 The shipped profile is `vless-ws-nginx`.
