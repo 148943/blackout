@@ -92,8 +92,7 @@ The shipped profile is `vless-ws-nginx`.
 ```bash
 blackout update check
 blackout update
-blackout update run
 ```
 
 - `update check`: read-only. Prints the installed Blackout version and remote branch commit. It does not modify files.
-- `update` or `update run`: updates Blackout scripts and config templates from the configured repository and branch. It does not update Xray core.
+- `update`: updates Blackout scripts and config templates from the configured repository and branch. It does not update Xray core.
