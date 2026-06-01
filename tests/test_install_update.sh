@@ -53,7 +53,11 @@ export BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
 check_output="$(bo_update_check)"
 grep -q 'installed: test-version' <<<"$check_output"
 grep -q 'remote master: 0123456789abcdef0123456789abcdef01234567' <<<"$check_output"
-grep -q 'git ls-remote git@github.com:148943/blackout.git refs/heads/master' "$BLACKOUT_TEST_LOG"
+grep -q 'git ls-remote https://github.com/148943/blackout.git refs/heads/master' "$BLACKOUT_TEST_LOG"
+
+BLACKOUT_REPO="git@github.com:148943/blackout.git"
+[ "$(bo_update_repo)" = "https://github.com/148943/blackout.git" ]
+unset BLACKOUT_REPO
 
 install_dir="$tmp/opt/blackout"
 backup_dir="$tmp/backups"
@@ -114,7 +118,7 @@ bo_install_copy_tree "$ROOT_DIR" "$repo_install" "$tmp/bin/blackout"
 
 env_file="$tmp/blackout.env"
 bo_install_write_env "$env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db" "$tmp/etc/blackout" "$tmp/state"
-grep -q 'BLACKOUT_REPO="git@github.com:148943/blackout.git"' "$env_file"
+grep -q 'BLACKOUT_REPO="https://github.com/148943/blackout.git"' "$env_file"
 grep -q 'BLACKOUT_BRANCH="master"' "$env_file"
 grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
 grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"

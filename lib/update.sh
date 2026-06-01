@@ -6,7 +6,11 @@ if ! declare -F bo_fail >/dev/null 2>&1; then
 fi
 
 bo_update_repo() {
-  printf '%s\n' "${BLACKOUT_REPO:-git@github.com:148943/blackout.git}"
+  local repo="${BLACKOUT_REPO:-https://github.com/148943/blackout.git}"
+  if [ "$repo" = "git@github.com:148943/blackout.git" ]; then
+    repo="https://github.com/148943/blackout.git"
+  fi
+  printf '%s\n' "$repo"
 }
 
 bo_update_branch() {

@@ -616,7 +616,7 @@ Create `lib/update.sh`:
 #!/usr/bin/env bash
 
 bo_update_check() {
-  local repo="${BLACKOUT_REPO:-git@github.com:148943/blackout.git}" branch="${BLACKOUT_BRANCH:-master}"
+  local repo="${BLACKOUT_REPO:-https://github.com/148943/blackout.git}" branch="${BLACKOUT_BRANCH:-master}"
   local remote
   remote="$(git ls-remote "$repo" "refs/heads/$branch" | awk '{print $1}')"
   bo_log "installed: ${BLACKOUT_VERSION:-dev}"
@@ -625,7 +625,7 @@ bo_update_check() {
 
 bo_update_run() {
   bo_need_root
-  local repo="${BLACKOUT_REPO:-git@github.com:148943/blackout.git}" branch="${BLACKOUT_BRANCH:-master}"
+  local repo="${BLACKOUT_REPO:-https://github.com/148943/blackout.git}" branch="${BLACKOUT_BRANCH:-master}"
   local tmp backup
   tmp="$(mktemp -d)"
   backup="/var/backups/blackout/update-$(date +%Y%m%d-%H%M%S)"
@@ -679,7 +679,7 @@ read -r -p "Domain: " domain
 read -r -p "ACME email: " email
 
 cat >/etc/blackout/blackout.env <<EOF_ENV
-BLACKOUT_REPO="git@github.com:148943/blackout.git"
+BLACKOUT_REPO="https://github.com/148943/blackout.git"
 BLACKOUT_BRANCH="master"
 BLACKOUT_VERSION="dev"
 BLACKOUT_INSTALL_DIR="/opt/blackout"
@@ -744,7 +744,7 @@ The install guide must show:
 ```bash
 apt update && apt upgrade -y
 apt install -y git curl
-git clone git@github.com:148943/blackout.git
+git clone https://github.com/148943/blackout.git
 cd blackout
 bash install.sh
 blackout user add

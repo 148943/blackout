@@ -57,7 +57,7 @@ bo_install_write_env() {
   local env_file="$1" install_dir="$2" lib_dir="$3" config_dir="$4" db_path="$5" etc_dir="${6:-/etc/blackout}" state_dir="${7:-/var/lib/blackout}" xray_config="${8:-/etc/xray/config.json}"
   mkdir -p "$(dirname "$env_file")"
   cat >"$env_file" <<EOF_ENV
-BLACKOUT_REPO="${BLACKOUT_REPO:-git@github.com:148943/blackout.git}"
+BLACKOUT_REPO="${BLACKOUT_REPO:-https://github.com/148943/blackout.git}"
 BLACKOUT_BRANCH="${BLACKOUT_BRANCH:-master}"
 BLACKOUT_VERSION="${BLACKOUT_VERSION:-dev}"
 BLACKOUT_INSTALL_DIR="$install_dir"

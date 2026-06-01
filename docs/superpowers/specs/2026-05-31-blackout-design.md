@@ -263,7 +263,7 @@ blackout update
 `install.sh` writes update metadata into `/etc/blackout/blackout.env`:
 
 ```bash
-BLACKOUT_REPO="git@github.com:148943/blackout.git"
+BLACKOUT_REPO="https://github.com/148943/blackout.git"
 BLACKOUT_BRANCH="master"
 BLACKOUT_VERSION="dev"
 BLACKOUT_INSTALL_DIR="/opt/blackout"
