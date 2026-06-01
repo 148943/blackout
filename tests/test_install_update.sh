@@ -103,7 +103,40 @@ bo_install_copy_tree "$ROOT_DIR" "$repo_install" "$tmp/bin/blackout"
 [ ! -d "$repo_install/blackout/lib" ]
 
 env_file="$tmp/blackout.env"
-bo_install_write_env "$env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db"
+bo_install_write_env "$env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db" "$tmp/etc/blackout" "$tmp/state"
 grep -q 'BLACKOUT_REPO="git@github.com:148943/blackout.git"' "$env_file"
 grep -q 'BLACKOUT_BRANCH="master"' "$env_file"
 grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
+grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"
+
+service_path="$tmp/etc/systemd/system/xray.service"
+config_dir="$tmp/etc/xray"
+bo_xray_install_service "$service_path" "$config_dir"
+[ -d "$config_dir" ]
+grep -q 'ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json' "$service_path"
+grep -q 'Restart=on-failure' "$service_path"
+grep -q 'WantedBy=multi-user.target' "$service_path"
+
+install_order="$tmp/install-order.log"
+bo_install_xray_initial() {
+  printf 'xray_initial no_restart=%s service=%s config_dir=%s\n' \
+    "${BLACKOUT_XRAY_NO_RESTART:-0}" \
+    "$(test -f "$BLACKOUT_XRAY_SERVICE_PATH" && printf yes || printf no)" \
+    "$(test -d "$(dirname "$BLACKOUT_XRAY_CONFIG")" && printf yes || printf no)" \
+    >>"$install_order"
+}
+bo_config_switch() {
+  printf 'config_switch no_restart=%s service=%s config_dir=%s\n' \
+    "${BLACKOUT_XRAY_NO_RESTART:-0}" \
+    "$(test -f "$BLACKOUT_XRAY_SERVICE_PATH" && printf yes || printf no)" \
+    "$(test -d "$(dirname "$BLACKOUT_XRAY_CONFIG")" && printf yes || printf no)" \
+    >>"$install_order"
+}
+
+export BLACKOUT_XRAY_SERVICE_PATH="$service_path"
+export BLACKOUT_XRAY_CONFIG="$tmp/etc/xray/config.json"
+rm -f "$service_path"
+rm -rf "$config_dir"
+bo_install_prepare_xray
+grep -q 'xray_initial no_restart=1 service=yes config_dir=yes' "$install_order"
+grep -q 'config_switch no_restart=0 service=yes config_dir=yes' "$install_order"

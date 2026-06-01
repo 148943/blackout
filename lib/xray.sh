@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+BLACKOUT_XRAY_CONFIG="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
+BLACKOUT_XRAY_SERVICE_PATH="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}"
+
 bo_xray_asset_for_arch() {
   case "$1" in
     x86_64|amd64) printf 'Xray-linux-64.zip\n' ;;
@@ -74,6 +77,38 @@ bo_xray_verify_zip() {
   fi
 }
 
+bo_xray_install_service() {
+  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_dir="${2:-$(dirname "$BLACKOUT_XRAY_CONFIG")}"
+  mkdir -p "$(dirname "$service_path")" "$config_dir"
+  cat >"$service_path" <<'UNIT'
+[Unit]
+Description=Xray Service
+Documentation=https://github.com/XTLS/Xray-core
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=1048576
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/etc/xray /etc/blackout /var/lib/blackout /dev/shm
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  if [ "${BLACKOUT_DRY_RUN:-0}" = "1" ]; then
+    printf '%s\n' "systemctl daemon-reload" >>"${BLACKOUT_DRY_RUN_LOG:-/dev/stderr}"
+  else
+    systemctl daemon-reload
+  fi
+}
+
 bo_xray_install_version() {
   bo_need_root
   local version="${1:-latest}" tmp zip
@@ -84,6 +119,7 @@ bo_xray_install_version() {
   install -Dm755 "$tmp/xray/xray" /usr/local/bin/xray
   [ -f "$tmp/xray/geoip.dat" ] && install -Dm644 "$tmp/xray/geoip.dat" /usr/local/share/xray/geoip.dat
   [ -f "$tmp/xray/geosite.dat" ] && install -Dm644 "$tmp/xray/geosite.dat" /usr/local/share/xray/geosite.dat
+  [ "${BLACKOUT_XRAY_NO_RESTART:-0}" = "1" ] && return 0
   systemctl restart xray
 }
 

@@ -54,7 +54,7 @@ bo_install_copy_tree() {
 }
 
 bo_install_write_env() {
-  local env_file="$1" install_dir="$2" lib_dir="$3" config_dir="$4" db_path="$5" etc_dir="${6:-/etc/blackout}" state_dir="${7:-/var/lib/blackout}"
+  local env_file="$1" install_dir="$2" lib_dir="$3" config_dir="$4" db_path="$5" etc_dir="${6:-/etc/blackout}" state_dir="${7:-/var/lib/blackout}" xray_config="${8:-/etc/xray/config.json}"
   mkdir -p "$(dirname "$env_file")"
   cat >"$env_file" <<EOF_ENV
 BLACKOUT_REPO="${BLACKOUT_REPO:-git@github.com:148943/blackout.git}"
@@ -67,6 +67,7 @@ BLACKOUT_ETC_DIR="$etc_dir"
 BLACKOUT_STATE_DIR="$state_dir"
 BLACKOUT_SSL_DIR="$etc_dir/ssl"
 BLACKOUT_DB="$db_path"
+BLACKOUT_XRAY_CONFIG="$xray_config"
 EOF_ENV
 }
 
@@ -76,6 +77,19 @@ bo_install_prompt() {
   read -r -p "ACME email: " email
   printf -v "$__domain_var" '%s' "$domain"
   printf -v "$__email_var" '%s' "$email"
+}
+
+bo_install_xray_initial() {
+  bo_xray_install_version latest
+}
+
+bo_install_prepare_xray() {
+  local service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}" config_dir
+  config_dir="$(dirname "${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}")"
+  bo_xray_install_service "$service_path" "$config_dir"
+  BLACKOUT_XRAY_NO_RESTART=1 bo_install_xray_initial
+  unset BLACKOUT_XRAY_NO_RESTART
+  bo_config_switch vless-ws-nginx
 }
 
 bo_install_main() {
@@ -88,30 +102,33 @@ bo_install_main() {
   local db_path="${BLACKOUT_DB:-$state_dir/blackout.db}"
   local bin_path="${BLACKOUT_BIN_PATH:-/usr/local/bin/blackout}"
   local env_file="${BLACKOUT_ENV:-$etc_dir/blackout.env}"
+  local xray_config="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
+  local xray_service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}"
 
   bo_install_need_root
   bo_install_check_debian12
   bo_install_apt_packages
 
-  mkdir -p "$install_dir" "$etc_dir/ssl" "$state_dir"
+  mkdir -p "$install_dir" "$etc_dir/ssl" "$state_dir" "$(dirname "$xray_config")"
   bo_install_copy_tree "$ROOT_DIR" "$install_dir" "$bin_path"
   bo_install_prompt domain email
-  bo_install_write_env "$env_file" "$install_dir" "$lib_dir" "$config_dir" "$db_path" "$etc_dir" "$state_dir"
+  bo_install_write_env "$env_file" "$install_dir" "$lib_dir" "$config_dir" "$db_path" "$etc_dir" "$state_dir" "$xray_config"
 
   BLACKOUT_LIB_DIR="$lib_dir"
   BLACKOUT_CONFIG_DIR="$config_dir"
   BLACKOUT_ETC_DIR="$etc_dir"
   BLACKOUT_STATE_DIR="$state_dir"
   BLACKOUT_DB="$db_path"
-  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB
+  BLACKOUT_XRAY_CONFIG="$xray_config"
+  BLACKOUT_XRAY_SERVICE_PATH="$xray_service_path"
+  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH
 
   bo_db_init
   bo_setting_set domain "$domain"
   bo_setting_set ws_path "/vless"
   bo_acme_install "$email"
   bo_cert_issue "$email" "$domain"
-  bo_xray_install_version latest
-  bo_config_switch vless-ws-nginx
+  bo_install_prepare_xray
   systemctl enable --now xray nginx
   bo_log "install complete"
 }
