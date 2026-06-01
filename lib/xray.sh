@@ -26,7 +26,12 @@ bo_xray_download() {
   digest="$zip.dgst"
   mkdir -p "$dest"
   bo_trace "download: $url" >&2
-  curl -fL "$url" -o "$zip"
+  if ! curl -fL "$url" -o "$zip"; then
+    rm -f "$zip"
+    bo_warn "failed to download Xray asset: $asset for $version"
+    bo_warn "check the Xray version tag exists and has a Linux asset for this server architecture"
+    return 1
+  fi
   if bo_xray_download_digest "$(bo_xray_digest_url "$version" "$asset")" "$digest" "$asset"; then
     bo_xray_verify_zip "$zip" "$digest" "$asset" || return 1
   else

@@ -120,6 +120,34 @@ curl() {
   done
   [ -n "$output" ] || return 1
   case "$output" in
+    *.dgst) printf '404' ;;
+    *)
+      printf 'curl: (22) The requested URL returned error: 404\n' >&2
+      return 22
+      ;;
+  esac
+}
+
+download_status=0
+download_err="$tmpdir/download-zip-404.err"
+download_out="$(bo_xray_download 9812312.1 "$tmpdir/download-zip-404" 2>"$download_err")" || download_status=$?
+[ "$download_status" -ne 0 ]
+[ -z "$download_out" ]
+grep -q 'failed to download Xray asset: Xray-linux-64.zip for 9812312.1' "$download_err"
+[ ! -e "$tmpdir/download-zip-404/Xray-linux-64.zip" ]
+
+curl() {
+  local output="" arg next_is_output=0
+  for arg in "$@"; do
+    if [ "$next_is_output" -eq 1 ]; then
+      output="$arg"
+      next_is_output=0
+      continue
+    fi
+    [ "$arg" = "-o" ] && next_is_output=1
+  done
+  [ -n "$output" ] || return 1
+  case "$output" in
     *.dgst) printf '500' ;;
     *) printf 'downloaded zip\n' > "$output" ;;
   esac
