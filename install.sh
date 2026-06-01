@@ -15,6 +15,8 @@ BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
 . "$ROOT_DIR/lib/certs.sh"
 # shellcheck disable=SC1091
 . "$ROOT_DIR/lib/configs.sh"
+# shellcheck disable=SC1091
+. "$ROOT_DIR/lib/automation.sh"
 
 bo_install_run() {
   if [ "${BLACKOUT_DRY_RUN:-0}" = "1" ]; then
@@ -89,6 +91,7 @@ bo_install_prepare_xray() {
   BLACKOUT_XRAY_NO_RESTART=1 bo_install_xray_initial
   unset BLACKOUT_XRAY_NO_RESTART
   bo_config_switch vless-ws-nginx
+  bo_automation_expire_install
 }
 
 bo_install_main() {
@@ -120,7 +123,8 @@ bo_install_main() {
   BLACKOUT_DB="$db_path"
   BLACKOUT_XRAY_CONFIG="$xray_config"
   BLACKOUT_XRAY_SERVICE_PATH="$xray_service_path"
-  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH
+  BLACKOUT_BIN_PATH="$bin_path"
+  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH BLACKOUT_BIN_PATH
 
   bo_db_init
   bo_setting_set domain "$domain"

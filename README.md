@@ -1,8 +1,10 @@
 # Blackout
 
-Blackout is a Bash management suite for Debian 12 VPS hosts running Xray-core behind an Nginx reverse proxy. It installs and manages the default `vless-ws-nginx` profile, TLS certificates from `acme.sh`, SQLite-backed users, Xray API runtime user changes, Xray core updates, and Blackout script updates.
+Blackout is a Bash management suite for Debian 12 VPS hosts running Xray-core behind an Nginx reverse proxy. It installs and manages the default `vless-ws-nginx` profile, TLS certificates from `acme.sh`, SQLite-backed users, automated expiry cleanup, Xray API runtime user changes, Xray core updates, and Blackout script updates.
 
 Routine user operations use the local Xray API instead of restarting Xray. State is stored in SQLite at `/var/lib/blackout/blackout.db` after installation.
+
+Fresh installs add `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes.
 
 More documentation:
 

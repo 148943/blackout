@@ -135,6 +135,11 @@ grep -q 'BLACKOUT_BRANCH="master"' "$env_file"
 grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
 grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"
 
+cron_file="$tmp/etc/cron.d/blackout-expire"
+bo_automation_expire_install() {
+  printf 'automation_expire_install cron=%s bin=%s\n' "$BLACKOUT_EXPIRE_CRON" "$BLACKOUT_BIN_PATH" >>"$install_order"
+}
+
 service_path="$tmp/etc/systemd/system/xray.service"
 config_dir="$tmp/etc/xray"
 bo_xray_install_service "$service_path" "$config_dir/config.json"
@@ -166,8 +171,10 @@ bo_config_switch() {
 
 export BLACKOUT_XRAY_SERVICE_PATH="$service_path"
 export BLACKOUT_XRAY_CONFIG="$tmp/etc/xray/config.json"
+export BLACKOUT_EXPIRE_CRON="$cron_file"
 rm -f "$service_path"
 rm -rf "$config_dir"
 bo_install_prepare_xray
 grep -q 'xray_initial no_restart=1 service=yes config_dir=yes' "$install_order"
 grep -q 'config_switch no_restart=0 service=yes config_dir=yes' "$install_order"
+grep -q 'automation_expire_install cron='"$cron_file"' bin='"$bin_path" "$install_order"

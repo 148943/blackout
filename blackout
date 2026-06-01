@@ -17,6 +17,7 @@ Blackout commands:
   blackout xray install|update|version|current
   blackout cert issue|renew|change-domain|status
   blackout config list|switch|current
+  blackout automation expire install|remove|status
   blackout update [check]
 USAGE
 }
@@ -29,6 +30,7 @@ main() {
     xray) shift; . "$BLACKOUT_LIB_DIR/xray.sh"; bo_xray_cmd "$@" ;;
     cert) shift; . "$BLACKOUT_LIB_DIR/certs.sh"; bo_cert_cmd "$@" ;;
     config) shift; . "$BLACKOUT_LIB_DIR/configs.sh"; bo_config_cmd "$@" ;;
+    automation) shift; . "$BLACKOUT_LIB_DIR/automation.sh"; bo_automation_cmd "$@" ;;
     update) shift || true; . "$BLACKOUT_LIB_DIR/update.sh"; bo_update_cmd "$@" ;;
     -h|--help|help) usage ;;
     *) usage; exit 2 ;;
