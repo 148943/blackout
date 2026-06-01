@@ -67,6 +67,8 @@ bo_xray_add_user() {
     printf '  "inbounds": [\n'
     printf '    {\n'
     printf '      "tag": "%s",\n' "$tag"
+    printf '      "listen": "127.0.0.1",\n'
+    printf '      "port": 1,\n'
     printf '      "protocol": "vless",\n'
     printf '      "settings": {\n'
     printf '        "clients": [\n'

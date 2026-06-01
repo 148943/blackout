@@ -26,6 +26,8 @@ with open(sys.argv[1], encoding="utf-8") as config_file:
 
 client = config["inbounds"][0]["settings"]["clients"][0]
 assert config["inbounds"][0]["tag"] == "vless"
+assert config["inbounds"][0]["listen"] == "127.0.0.1"
+assert config["inbounds"][0]["port"] == 1
 assert client["id"] == "00000000-0000-0000-0000-000000000001"
 assert client["email"] == "aiman"
 assert client["level"] == 0
