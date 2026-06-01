@@ -71,6 +71,7 @@ export BLACKOUT_NGINX_ENABLED_DIR="$tmp/etc/nginx/sites-enabled"
 . "$ROOT_DIR/lib/db.sh"
 . "$ROOT_DIR/lib/configs.sh"
 . "$ROOT_DIR/lib/certs.sh"
+. "$ROOT_DIR/lib/users.sh"
 
 bo_db_init
 bo_setting_set domain example.com
@@ -88,6 +89,21 @@ bo_config_switch vless-ws-nginx
 [ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
 
 jq -e . "$BLACKOUT_XRAY_CONFIG" >/dev/null
+rendered_inbound="$(
+  python3 - "$BLACKOUT_XRAY_CONFIG" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    config = json.load(config_file)
+
+for inbound in config["inbounds"]:
+    if inbound["tag"] != "api":
+        print(inbound["tag"])
+        break
+PY
+)"
+[ "$rendered_inbound" = "$(bo_user_active_inbound)" ]
 grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock' "$tmp/etc/nginx/sites-available/blackout"
