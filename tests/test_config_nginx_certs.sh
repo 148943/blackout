@@ -130,7 +130,7 @@ PY
 [ "$rendered_inbound" = "$(bo_user_active_inbound)" ]
 grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'systemctl restart xray' "$BLACKOUT_TEST_LOG"
 grep -q 'replayed replayed 00000000-0000-0000-0000-000000000021 2' "$BLACKOUT_TEST_LOG"
 if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired ' "$BLACKOUT_TEST_LOG"; then
