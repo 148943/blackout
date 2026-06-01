@@ -8,6 +8,7 @@ Blackout renders Xray, Nginx, and share-link templates from profile directories 
 blackout config list
 blackout config current
 blackout config switch PROFILE
+blackout config ws-path /newpath
 ```
 
 ## Profile Layout
@@ -42,3 +43,10 @@ The switch command requires a stored domain setting. It renders the profile with
 
 The implementation validates Nginx and restores the previous Nginx site if `nginx -t` fails.
 
+## WebSocket Path
+
+```bash
+blackout config ws-path /newpath
+```
+
+The WebSocket path must start with `/` and may contain letters, numbers, `.`, `_`, `~`, `/`, and `-`. Changing it stores the new `ws_path`, reapplies the current profile, restarts Xray, reloads Nginx, and makes newly generated share links use the new path.

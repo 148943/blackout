@@ -140,6 +140,19 @@ if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired 
 fi
 grep -q 'systemctl reload nginx' "$BLACKOUT_TEST_LOG"
 
+bo_config_cmd ws-path /stealth
+[ "$(bo_setting_get ws_path)" = "/stealth" ]
+grep -q 'location = /stealth' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/stealth' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/stealth"' "$BLACKOUT_XRAY_CONFIG"
+
+if ( bo_config_cmd ws-path '/bad path' ) >/dev/null 2>&1; then
+  echo "unsafe config ws-path accepted" >&2
+  exit 1
+fi
+[ "$(bo_setting_get ws_path)" = "/stealth" ]
+bo_config_cmd ws-path /blackout
+
 sqlite3 "$BLACKOUT_DB" "DELETE FROM settings WHERE key = 'xray_api_port';"
 export BLACKOUT_XRAY_API_PORT=61001
 bo_config_switch vless-ws-nginx

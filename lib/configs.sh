@@ -113,12 +113,21 @@ bo_config_switch() {
   rm -rf "$stage"
 }
 
+bo_config_ws_path() {
+  local ws_path="${1:?ws_path required}" profile
+  profile="$(bo_config_current)"
+  bo_config_validate_inputs "$(bo_config_setting domain "${DOMAIN:-}")" "$ws_path" "$(bo_xray_api_port)"
+  bo_setting_set ws_path "$ws_path"
+  bo_config_switch "$profile"
+}
+
 bo_config_cmd() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
     list) bo_config_list ;;
     current) bo_config_current ;;
     switch) bo_config_switch "${1:?profile required}" ;;
+    ws-path) bo_config_ws_path "${1:?ws_path required}" ;;
     *) bo_fail "unknown config command: ${cmd:-}" ;;
   esac
 }
