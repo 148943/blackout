@@ -88,6 +88,16 @@ export BLACKOUT_DRY_RUN=1
 export BLACKOUT_ROOT_DIR="$ROOT_DIR"
 . "$ROOT_DIR/install.sh"
 
+prompt_input="$tmp/prompt-input"
+printf 'vpn.example\nadmin@example.com\n' >"$prompt_input"
+bo_test_prompt_locals() {
+  local domain email
+  bo_install_prompt domain email <"$prompt_input"
+  [ "$domain" = "vpn.example" ]
+  [ "$email" = "admin@example.com" ]
+}
+bo_test_prompt_locals
+
 dry_log="$tmp/install-dry.log"
 export BLACKOUT_DRY_RUN_LOG="$dry_log"
 bo_install_apt_packages

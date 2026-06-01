@@ -72,11 +72,11 @@ EOF_ENV
 }
 
 bo_install_prompt() {
-  local __domain_var="$1" __email_var="$2" domain email
-  read -r -p "Domain: " domain
-  read -r -p "ACME email: " email
-  printf -v "$__domain_var" '%s' "$domain"
-  printf -v "$__email_var" '%s' "$email"
+  local __domain_var="$1" __email_var="$2" __domain_value __email_value
+  read -r -p "Domain: " __domain_value
+  read -r -p "ACME email: " __email_value
+  printf -v "$__domain_var" '%s' "$__domain_value"
+  printf -v "$__email_var" '%s' "$__email_value"
 }
 
 bo_install_xray_initial() {
