@@ -82,12 +82,14 @@ blackout config list
 blackout config switch PROFILE
 blackout config current
 blackout config ws-path /newpath
+blackout config reload
 ```
 
 - `list`: lists profile directories under the configured Blackout config directory.
 - `switch PROFILE`: renders the selected profile, validates Xray JSON with `jq`, installs the Nginx site, runs `nginx -t`, writes the active Xray config and share template, stores profile settings, restarts Xray, and reloads Nginx.
 - `current`: prints the stored active profile, defaulting to `vless-ws-nginx`.
 - `ws-path /newpath`: validates and stores the WebSocket path, then reapplies the current profile. This restarts Xray and reloads Nginx.
+- `reload`: reapplies the current profile with the stored settings. This restarts Xray and reloads Nginx.
 
 The shipped profile is `vless-ws-nginx`.
 

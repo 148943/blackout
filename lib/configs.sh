@@ -121,6 +121,10 @@ bo_config_ws_path() {
   bo_config_switch "$profile"
 }
 
+bo_config_reload() {
+  bo_config_switch "$(bo_config_current)"
+}
+
 bo_config_cmd() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
@@ -128,6 +132,7 @@ bo_config_cmd() {
     current) bo_config_current ;;
     switch) bo_config_switch "${1:?profile required}" ;;
     ws-path) bo_config_ws_path "${1:?ws_path required}" ;;
+    reload) bo_config_reload ;;
     *) bo_fail "unknown config command: ${cmd:-}" ;;
   esac
 }

@@ -9,6 +9,7 @@ blackout config list
 blackout config current
 blackout config switch PROFILE
 blackout config ws-path /newpath
+blackout config reload
 ```
 
 ## Profile Layout
@@ -42,6 +43,12 @@ blackout config switch vless-ws-nginx
 The switch command requires a stored domain setting. It renders the profile with the stored domain, WebSocket path, and Xray API port; validates Xray JSON with `jq`; installs and tests the Nginx site; writes the Xray config; writes `/etc/blackout/share.template`; stores the active profile; restarts Xray; and reloads Nginx.
 
 The implementation validates Nginx and restores the previous Nginx site if `nginx -t` fails.
+
+Reload the current profile without changing settings:
+
+```bash
+blackout config reload
+```
 
 ## WebSocket Path
 

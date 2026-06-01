@@ -153,6 +153,13 @@ fi
 [ "$(bo_setting_get ws_path)" = "/stealth" ]
 bo_config_cmd ws-path /blackout
 
+bo_setting_set ws_path /reload
+bo_config_cmd reload
+[ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
+grep -q 'location = /reload' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/reload"' "$BLACKOUT_XRAY_CONFIG"
+bo_config_cmd ws-path /blackout
+
 sqlite3 "$BLACKOUT_DB" "DELETE FROM settings WHERE key = 'xray_api_port';"
 export BLACKOUT_XRAY_API_PORT=61001
 bo_config_switch vless-ws-nginx
