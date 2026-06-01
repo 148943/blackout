@@ -31,6 +31,8 @@ blackout cert issue admin@example.com example.com
 
 `issue` installs `acme.sh` if needed, stops Nginx, runs standalone HTTP validation, installs the certificate and private key into `/etc/blackout/ssl`, starts Nginx, stores the domain setting, and reloads Nginx when possible.
 
+If `acme.sh` reports that the domain is unchanged and renewal is not due, Blackout installs the existing `acme.sh` certificate instead of forcing a renewal. This makes installer retries safe without consuming unnecessary CA rate limit.
+
 If `DOMAIN` is omitted, Blackout uses the stored domain setting.
 
 ## Renew
@@ -58,4 +60,3 @@ blackout cert status
 ```
 
 `status` prints the stored domain and reports whether the fullchain and private key files are present.
-

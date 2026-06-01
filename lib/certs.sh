@@ -42,9 +42,13 @@ bo_cert_with_nginx_stopped() {
 }
 
 bo_cert_issue_acme() {
-  local domain="${1:?domain required}"
-  "$(bo_acme_bin)" --issue --standalone -d "$domain" || return $?
+  local domain="${1:?domain required}" issue_status=0
+  "$(bo_acme_bin)" --issue --standalone -d "$domain" || issue_status=$?
+  if [ "$issue_status" -ne 0 ] && [ "$issue_status" -ne 2 ]; then
+    return "$issue_status"
+  fi
   "$(bo_acme_bin)" --install-cert -d "$domain" --fullchain-file "$BLACKOUT_SSL_FULLCHAIN" --key-file "$BLACKOUT_SSL_PRIVKEY"
+  [ "$issue_status" -eq 0 ] || bo_warn "using existing acme.sh certificate for $domain"
 }
 
 bo_cert_renew_acme() {

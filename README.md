@@ -122,7 +122,7 @@ blackout cert change-domain DOMAIN
 blackout cert status
 ```
 
-`blackout cert issue EMAIL [DOMAIN]` installs `acme.sh` if needed, issues a certificate, installs the cert/key into `/etc/blackout/ssl`, stores the domain setting, and reloads Nginx when possible.
+`blackout cert issue EMAIL [DOMAIN]` installs `acme.sh` if needed, issues a certificate, installs the cert/key into `/etc/blackout/ssl`, stores the domain setting, and reloads Nginx when possible. On installer retries, if `acme.sh` says the certificate is not due for renewal, Blackout installs the existing cert instead of forcing renewal.
 
 `blackout cert change-domain DOMAIN` currently updates the stored domain setting only. Run `blackout cert issue EMAIL DOMAIN` after changing domains to issue and install a certificate for the new name.
 

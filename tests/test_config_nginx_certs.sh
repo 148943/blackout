@@ -64,6 +64,7 @@ printf 'acme.sh %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
 case " $* " in
   *" --issue "*)
     [ "${BLACKOUT_ACME_FAIL_ISSUE:-0}" = "1" ] && exit 42
+    [ "${BLACKOUT_ACME_SKIP_ISSUE:-0}" = "1" ] && exit 2
     ;;
   *" --renew "*)
     [ "${BLACKOUT_ACME_FAIL_RENEW:-0}" = "1" ] && exit 43
@@ -212,6 +213,11 @@ fi
 unset BLACKOUT_ACME_FAIL_ISSUE
 starts_after="$(grep -c 'systemctl start nginx' "$BLACKOUT_TEST_LOG")"
 [ "$starts_after" -gt "$starts_before" ]
+
+export BLACKOUT_ACME_SKIP_ISSUE=1
+bo_cert_cmd issue admin@example.com
+unset BLACKOUT_ACME_SKIP_ISSUE
+grep -q "acme.sh --install-cert -d new.example.com --fullchain-file $tmp/etc/ssl/fullchain.pem --key-file $tmp/etc/ssl/privkey.pem" "$BLACKOUT_TEST_LOG"
 
 starts_before="$starts_after"
 export BLACKOUT_ACME_FAIL_RENEW=1
