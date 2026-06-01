@@ -139,6 +139,27 @@ if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired 
 fi
 grep -q 'systemctl reload nginx' "$BLACKOUT_TEST_LOG"
 
+sqlite3 "$BLACKOUT_DB" "DELETE FROM settings WHERE key = 'xray_api_port';"
+export BLACKOUT_XRAY_API_PORT=61001
+bo_config_switch vless-ws-nginx
+rendered_api_port="$(
+  python3 - "$BLACKOUT_XRAY_CONFIG" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    config = json.load(config_file)
+
+for inbound in config["inbounds"]:
+    if inbound["tag"] == "api":
+        print(inbound["port"])
+        break
+PY
+)"
+[ "$rendered_api_port" = "61001" ]
+[ "$(bo_setting_get xray_api_port)" = "61001" ]
+unset BLACKOUT_XRAY_API_PORT
+
 before_nginx="$(cat "$tmp/etc/nginx/sites-available/blackout")"
 mkdir -p "$tmp/configs/bad-nginx"
 cp "$tmp/configs/vless-ws-nginx/xray.conf" "$tmp/configs/bad-nginx/xray.conf"

@@ -111,11 +111,16 @@ grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"
 
 service_path="$tmp/etc/systemd/system/xray.service"
 config_dir="$tmp/etc/xray"
-bo_xray_install_service "$service_path" "$config_dir"
+bo_xray_install_service "$service_path" "$config_dir/config.json"
 [ -d "$config_dir" ]
 grep -q "ExecStart=/usr/local/bin/xray run -config $config_dir/config.json" "$service_path"
 grep -q 'Restart=on-failure' "$service_path"
 grep -q 'WantedBy=multi-user.target' "$service_path"
+
+custom_service_path="$tmp/etc/systemd/system/xray-custom.service"
+custom_config="$tmp/custom-xray/custom.json"
+bo_xray_install_service "$custom_service_path" "$custom_config"
+grep -q "ExecStart=/usr/local/bin/xray run -config $custom_config" "$custom_service_path"
 
 install_order="$tmp/install-order.log"
 bo_install_xray_initial() {

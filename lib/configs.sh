@@ -16,6 +16,10 @@ if ! declare -F bo_nginx_install_site >/dev/null 2>&1; then
   # shellcheck disable=SC1091
   . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/nginx.sh"
 fi
+if ! declare -F bo_xray_api_port >/dev/null 2>&1; then
+  # shellcheck disable=SC1091
+  . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/xray.sh"
+fi
 
 BLACKOUT_DEFAULT_PROFILE="${BLACKOUT_DEFAULT_PROFILE:-vless-ws-nginx}"
 BLACKOUT_XRAY_CONFIG="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
@@ -62,7 +66,7 @@ bo_config_switch() {
   bo_need_cmd jq
   domain="$(bo_config_setting domain "${DOMAIN:-}")"
   ws_path="$(bo_config_setting ws_path /vless)"
-  xray_api_port="$(bo_config_setting xray_api_port 60001)"
+  xray_api_port="$(bo_xray_api_port)" || return 1
   bo_config_validate_inputs "$domain" "$ws_path" "$xray_api_port"
 
   stage="$(mktemp -d)"

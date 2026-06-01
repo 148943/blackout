@@ -84,9 +84,8 @@ bo_install_xray_initial() {
 }
 
 bo_install_prepare_xray() {
-  local service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}" config_dir
-  config_dir="$(dirname "${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}")"
-  bo_xray_install_service "$service_path" "$config_dir"
+  local service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}" config_path="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
+  bo_xray_install_service "$service_path" "$config_path"
   BLACKOUT_XRAY_NO_RESTART=1 bo_install_xray_initial
   unset BLACKOUT_XRAY_NO_RESTART
   bo_config_switch vless-ws-nginx

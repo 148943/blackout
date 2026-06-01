@@ -78,14 +78,8 @@ bo_xray_verify_zip() {
 }
 
 bo_xray_install_service() {
-  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_dir config_path
-  if [ "$#" -ge 2 ]; then
-    config_dir="$2"
-    config_path="$config_dir/config.json"
-  else
-    config_path="$BLACKOUT_XRAY_CONFIG"
-    config_dir="$(dirname "$config_path")"
-  fi
+  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_path="${2:-$BLACKOUT_XRAY_CONFIG}" config_dir
+  config_dir="$(dirname "$config_path")"
   mkdir -p "$(dirname "$service_path")" "$config_dir"
   cat >"$service_path" <<UNIT
 [Unit]
