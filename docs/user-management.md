@@ -62,11 +62,14 @@ The current implementation prompts for a new duration, then updates SQLite. It d
 ```bash
 blackout user expire
 blackout user online
+blackout user online 10
 ```
 
 `expire` finds active users whose `expires_at` timestamp has passed, removes them from Xray runtime state, and marks them `expired`.
 
-`online` queries Xray stats for active users. Stats depend on the default profile's Xray `StatsService` and per-user traffic policy.
+`online` samples Xray stats for active users and only prints users whose traffic counters increased during the sample window. The default sample window is 5 seconds. Pass a number of seconds to change it, for example `blackout user online 10`.
+
+Stats depend on the default profile's Xray `StatsService` and per-user traffic policy.
 
 ## Data Location
 

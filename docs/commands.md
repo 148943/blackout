@@ -25,6 +25,7 @@ blackout user lock USERNAME
 blackout user unlock USERNAME
 blackout user list
 blackout user online
+blackout user online SECONDS
 blackout user link USERNAME
 blackout user expire
 ```
@@ -35,7 +36,8 @@ blackout user expire
 - `lock USERNAME`: removes the user from Xray runtime state and marks the SQLite row `locked`.
 - `unlock USERNAME`: adds the user back to Xray runtime state and marks the row `active` if it has not expired.
 - `list`: prints users from SQLite with username, status, and expiry timestamp.
-- `online`: queries Xray stats for active users.
+- `online`: samples Xray stats and prints only users whose traffic increased during the sample window.
+- `online SECONDS`: uses a custom numeric sample window instead of the 5 second default.
 - `link USERNAME`: renders the active user's client link from the current share template.
 - `expire`: removes expired active users from Xray runtime state and marks them `expired`.
 

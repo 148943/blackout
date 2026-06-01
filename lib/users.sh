@@ -265,18 +265,38 @@ bo_user_stat_value() {
 }
 
 bo_user_online() {
-  local username usernames stats uplink downlink total
+  local sample username usernames before after after_uplink after_downlink delta_uplink delta_downlink delta total
+  local -A before_uplink before_downlink
+  sample="${1:-5}"
+  case "$sample" in
+    ''|*[!0-9]*) bo_fail "sample seconds must be numeric" ;;
+  esac
   usernames="$(bo_db_active_usernames)" || return 1
+  [ -n "$usernames" ] || return 0
   while IFS= read -r username; do
     [ -n "$username" ] || continue
-    stats="$(bo_xray_user_stats "$username")" || return 1
-    uplink="$(bo_user_stat_value "$stats" "$username" uplink)"
-    downlink="$(bo_user_stat_value "$stats" "$username" downlink)"
-    total=$((uplink + downlink))
-    printf '%s  uplink=%s  downlink=%s  total=%s\n' \
+    before="$(bo_xray_user_stats "$username")" || return 1
+    before_uplink["$username"]="$(bo_user_stat_value "$before" "$username" uplink)"
+    before_downlink["$username"]="$(bo_user_stat_value "$before" "$username" downlink)"
+  done <<<"$usernames"
+  if [ "$sample" -gt 0 ]; then
+    sleep "$sample"
+  fi
+  while IFS= read -r username; do
+    [ -n "$username" ] || continue
+    after="$(bo_xray_user_stats "$username")" || return 1
+    after_uplink="$(bo_user_stat_value "$after" "$username" uplink)"
+    after_downlink="$(bo_user_stat_value "$after" "$username" downlink)"
+    delta_uplink=$((after_uplink - before_uplink[$username]))
+    delta_downlink=$((after_downlink - before_downlink[$username]))
+    [ "$delta_uplink" -ge 0 ] || delta_uplink=0
+    [ "$delta_downlink" -ge 0 ] || delta_downlink=0
+    delta=$((delta_uplink + delta_downlink))
+    [ "$delta" -gt 0 ] || continue
+    total=$((after_uplink + after_downlink))
+    printf '%s  status=online  delta=%s  total=%s\n' \
       "$username" \
-      "$(bo_user_format_bytes "$uplink")" \
-      "$(bo_user_format_bytes "$downlink")" \
+      "$(bo_user_format_bytes "$delta")" \
       "$(bo_user_format_bytes "$total")"
   done <<<"$usernames"
 }
@@ -354,7 +374,7 @@ bo_user_cmd() {
     lock) bo_user_need_arg username "${1:-}" && bo_user_lock "$1" ;;
     unlock) bo_user_need_arg username "${1:-}" && bo_user_unlock "$1" ;;
     list) bo_user_list ;;
-    online) bo_user_online ;;
+    online) bo_user_online "$@" ;;
     link) bo_user_need_arg username "${1:-}" && bo_user_link "$1" ;;
     expire) bo_user_expire ;;
     *) bo_fail "unknown user command: ${cmd:-}" ;;

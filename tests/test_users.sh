@@ -44,16 +44,28 @@ PY
 }
 bo_xray_user_stats() {
   bo_xray_events="${bo_xray_events}stats:$1"$'\n'
+  if [ -n "${BLACKOUT_TEST_STATS_LOG:-}" ]; then
+    printf '%s\n' "$1" >>"$BLACKOUT_TEST_STATS_LOG"
+  fi
+  local bump=0 calls=0
+  if [ -f "${BLACKOUT_TEST_ONLINE_COUNTER:-}" ]; then
+    calls="$(cat "$BLACKOUT_TEST_ONLINE_COUNTER")"
+  fi
+  calls="$((calls + 1))"
+  printf '%s\n' "$calls" >"$BLACKOUT_TEST_ONLINE_COUNTER"
+  if [ "${BLACKOUT_TEST_ONLINE_BUMP:-0}" = "1" ] && [ "$calls" -gt 1 ]; then
+    bump=4096
+  fi
   cat <<JSON
 {
   "stat": [
     {
       "name": "user>>>$1>>>traffic>>>downlink",
-      "value": 2270428
+      "value": $((2270428 + bump))
     },
     {
       "name": "user>>>$1>>>traffic>>>uplink",
-      "value": 851737
+      "value": $((851737 + bump))
     }
   ]
 }
@@ -143,7 +155,14 @@ bo_setting_set domain vpn.example
 bo_setting_set ws_path /vless
 bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
 
-bo_user_online | grep -qx 'aiman  uplink=831.8 KiB  downlink=2.2 MiB  total=3.0 MiB'
+BLACKOUT_TEST_ONLINE_COUNTER="$BLACKOUT_ETC_DIR/online-counter"
+printf '0\n' >"$BLACKOUT_TEST_ONLINE_COUNTER"
+if [ -n "$(bo_user_online 0)" ]; then
+  echo "idle user appeared online" >&2
+  exit 1
+fi
+printf '0\n' >"$BLACKOUT_TEST_ONLINE_COUNTER"
+BLACKOUT_TEST_ONLINE_BUMP=1 bo_user_online 0 | grep -qx 'aiman  status=online  delta=8.0 KiB  total=3.0 MiB'
 
 bo_db_user_insert stale 00000000-0000-0000-0000-000000000006 stale@example 0 active 100 101
 bo_xray_events=""
@@ -169,8 +188,11 @@ bo_xray_api() {
   bo_xray_events="${bo_xray_events}$*"$'\n'
 }
 bo_xray_events=""
-bo_user_online | grep -q 'aiman'
-if printf '%s' "$bo_xray_events" | grep -q 'stats:stale'; then
+BLACKOUT_TEST_STATS_LOG="$BLACKOUT_ETC_DIR/stats.log"
+: >"$BLACKOUT_TEST_STATS_LOG"
+bo_user_online 0 >/dev/null
+grep -qx 'aiman' "$BLACKOUT_TEST_STATS_LOG"
+if grep -q '^stale$' "$BLACKOUT_TEST_STATS_LOG"; then
   echo "expired active user checked online" >&2
   exit 1
 fi
