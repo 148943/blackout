@@ -18,7 +18,7 @@ More documentation:
 - Root shell or `sudo -i`.
 - A domain name with an `A` record pointing to the VPS IPv4 address. Add an `AAAA` record only if IPv6 is configured and reachable.
 - Ports `80` and `443` open from the internet.
-- `git` access to `git@github.com:148943/blackout.git`. If using the SSH URL, the VPS needs a GitHub deploy key or SSH key with repository access.
+- `git` access to `https://github.com/148943/blackout.git`.
 
 Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, and `uuid-runtime`.
 
@@ -29,7 +29,7 @@ Run these commands as root on the VPS:
 ```bash
 apt update && apt upgrade -y
 apt install -y git curl
-git clone git@github.com:148943/blackout.git
+git clone https://github.com/148943/blackout.git
 cd blackout
 bash install.sh
 blackout user add
