@@ -98,8 +98,7 @@ bo_install_prompt() {
 
 bo_install_prompt_cloudflare() {
   local __token_var="$1" __token_value
-  read -r -s -p "Cloudflare API token: " __token_value
-  printf '\n'
+  read -r -p "Cloudflare API token: " __token_value
   printf -v "$__token_var" '%s' "$__token_value"
 }
 
