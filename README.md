@@ -21,6 +21,7 @@ More documentation:
 - A domain name with an `A` record pointing to the VPS IPv4 address. Add an `AAAA` record only if IPv6 is configured and reachable.
 - Ports `80` and `443` open from the internet.
 - `git` access to `https://github.com/148943/blackout.git`.
+- For wildcard domains such as `*.new.example.com`, a Cloudflare API token with zone read and DNS edit permissions.
 
 Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, and `uuid-runtime`.
 
@@ -42,10 +43,11 @@ blackout user link USERNAME
 
 - `Domain`: the domain whose DNS `A` record already points to the VPS.
 - `ACME email`: the email address used by `acme.sh`.
+- `Cloudflare API token`: shown only when the domain starts with `*.`.
 
-The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate with `acme.sh` standalone mode, renders the `vless-ws-nginx` Xray and Nginx configs, and enables Xray and Nginx.
+The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `vless-ws-nginx` Xray and Nginx configs, and enables Xray and Nginx.
 
-Because standalone ACME needs port `80`, the certificate flow stops Nginx while issuing or renewing and starts it afterward.
+Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domains use Cloudflare DNS validation and automatically request both the base domain and wildcard name, for example `new.example.com` and `*.new.example.com`.
 
 ## First User
 
@@ -115,7 +117,7 @@ blackout xray current
 
 ## Certificate Management
 
-Blackout uses `acme.sh` in standalone mode and installs certificates into `/etc/blackout/ssl/fullchain.pem` and `/etc/blackout/ssl/privkey.pem`.
+Blackout uses `acme.sh` and installs certificates into `/etc/blackout/ssl/fullchain.pem` and `/etc/blackout/ssl/privkey.pem`.
 
 ```bash
 blackout cert issue EMAIL [DOMAIN]
@@ -124,9 +126,9 @@ blackout cert change-domain DOMAIN
 blackout cert status
 ```
 
-`blackout cert issue EMAIL [DOMAIN]` installs `acme.sh` if needed, issues a certificate, installs the cert/key into `/etc/blackout/ssl`, stores the domain setting, and reloads Nginx when possible. On installer retries, if `acme.sh` says the certificate is not due for renewal, Blackout installs the existing cert instead of forcing renewal.
+`blackout cert issue EMAIL [DOMAIN]` installs `acme.sh` if needed, issues a certificate, installs the cert/key into `/etc/blackout/ssl`, stores the domain setting, and reloads Nginx when possible. Normal domains use standalone HTTP validation. Wildcard domains use Cloudflare DNS validation with the API token stored in `/etc/blackout/blackout.env`.
 
-`blackout cert change-domain DOMAIN` currently updates the stored domain setting only. Run `blackout cert issue EMAIL DOMAIN` after changing domains to issue and install a certificate for the new name.
+`blackout cert change-domain DOMAIN` updates the stored domain. For wildcard domains, it also issues and installs the wildcard certificate, re-renders the active config, and reloads services.
 
 ## Troubleshooting
 
@@ -145,6 +147,7 @@ Common checks:
 
 - Confirm the domain `A` record points to this VPS before running install or certificate commands.
 - Confirm ports `80` and `443` are reachable and not blocked by the VPS firewall or provider firewall.
-- If ACME fails, stop any other service using port `80` and run `blackout cert issue EMAIL DOMAIN` again.
+- If standalone ACME fails, stop any other service using port `80` and run `blackout cert issue EMAIL DOMAIN` again.
+- If wildcard ACME fails, confirm the Cloudflare API token can list zones and edit DNS records for the domain.
 - If user links fail, confirm the user is active with `blackout user list` and that Xray is running.
 - If runtime user operations fail, confirm the default profile is active and the Xray API is reachable locally.

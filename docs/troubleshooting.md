@@ -35,6 +35,7 @@ Check:
 - Port `80` is open in the OS firewall and VPS provider firewall.
 - No other unmanaged service is occupying port `80`.
 - Nginx can be stopped and started by systemd.
+- For wildcard domains, the Cloudflare API token can list zones and edit DNS records.
 
 Retry:
 
@@ -88,4 +89,3 @@ blackout xray current
 blackout xray update
 blackout xray version VERSION
 ```
-

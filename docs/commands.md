@@ -68,12 +68,12 @@ blackout cert change-domain DOMAIN
 blackout cert status
 ```
 
-- `issue EMAIL [DOMAIN]`: installs `acme.sh` if needed, issues a certificate with standalone HTTP validation, installs it into `/etc/blackout/ssl`, stores the domain setting, and reloads Nginx when possible. If `DOMAIN` is omitted, the stored domain setting is used.
-- `renew`: force-renews the stored domain certificate and reinstalls the cert/key.
-- `change-domain DOMAIN`: updates the stored domain setting only.
+- `issue EMAIL [DOMAIN]`: installs `acme.sh` if needed, issues a certificate, installs it into `/etc/blackout/ssl`, stores the domain setting, and reloads Nginx when possible. Normal domains use standalone HTTP validation. Wildcard domains use Cloudflare DNS validation and issue both the base domain and wildcard name.
+- `renew`: force-renews the stored domain certificate and reinstalls the cert/key. Wildcard renewals use the stored Cloudflare API token from `/etc/blackout/blackout.env`.
+- `change-domain DOMAIN`: updates the stored domain setting. For wildcard domains, it also issues the wildcard certificate, re-renders the active config, and reloads services.
 - `status`: prints the stored domain and whether the fullchain and private key files exist.
 
-Standalone ACME stops Nginx during issue and renew operations, then starts it again.
+Standalone ACME stops Nginx during issue and renew operations, then starts it again. Wildcard ACME uses Cloudflare DNS validation and needs `BLACKOUT_CF_TOKEN` available during first issue or change-domain.
 
 ## Config Profiles
 

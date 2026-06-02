@@ -82,6 +82,10 @@ BLACKOUT_SSL_DIR="$etc_dir/ssl"
 BLACKOUT_DB="$db_path"
 BLACKOUT_XRAY_CONFIG="$xray_config"
 EOF_ENV
+  if [ -n "${BLACKOUT_CF_TOKEN:-}" ]; then
+    printf 'BLACKOUT_CF_TOKEN="%s"\n' "$(bo_cert_env_quote "$BLACKOUT_CF_TOKEN")" >>"$env_file"
+  fi
+  chmod 0600 "$env_file"
 }
 
 bo_install_prompt() {
@@ -90,6 +94,13 @@ bo_install_prompt() {
   read -r -p "ACME email: " __email_value
   printf -v "$__domain_var" '%s' "$__domain_value"
   printf -v "$__email_var" '%s' "$__email_value"
+}
+
+bo_install_prompt_cloudflare() {
+  local __token_var="$1" __token_value
+  read -r -s -p "Cloudflare API token: " __token_value
+  printf '\n'
+  printf -v "$__token_var" '%s' "$__token_value"
 }
 
 bo_install_xray_initial() {
@@ -106,7 +117,7 @@ bo_install_prepare_xray() {
 }
 
 bo_install_main() {
-  local domain email
+  local domain email cf_token
   local install_dir="${BLACKOUT_INSTALL_DIR:-/opt/blackout}"
   local lib_dir="${BLACKOUT_INSTALLED_LIB_DIR:-$install_dir/lib}"
   local config_dir="${BLACKOUT_INSTALLED_CONFIG_DIR:-$install_dir/configs}"
@@ -125,6 +136,11 @@ bo_install_main() {
   mkdir -p "$install_dir" "$etc_dir/ssl" "$state_dir" "$(dirname "$xray_config")"
   bo_install_copy_tree "$ROOT_DIR" "$install_dir" "$bin_path"
   bo_install_prompt domain email
+  if [[ "$domain" == \*.* ]]; then
+    bo_install_prompt_cloudflare cf_token
+    BLACKOUT_CF_TOKEN="$cf_token"
+    export BLACKOUT_CF_TOKEN
+  fi
   bo_install_write_env "$env_file" "$install_dir" "$lib_dir" "$config_dir" "$db_path" "$etc_dir" "$state_dir" "$xray_config"
 
   BLACKOUT_LIB_DIR="$lib_dir"
@@ -135,10 +151,12 @@ bo_install_main() {
   BLACKOUT_XRAY_CONFIG="$xray_config"
   BLACKOUT_XRAY_SERVICE_PATH="$xray_service_path"
   BLACKOUT_BIN_PATH="$bin_path"
-  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH BLACKOUT_BIN_PATH
+  BLACKOUT_ENV="$env_file"
+  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH BLACKOUT_BIN_PATH BLACKOUT_ENV
 
   bo_db_init
   bo_setting_set domain "$domain"
+  bo_setting_set acme_email "$email"
   bo_setting_set ws_path "/vless"
   bo_acme_install "$email"
   bo_cert_issue "$email" "$domain"

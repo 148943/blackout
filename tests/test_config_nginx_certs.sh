@@ -50,6 +50,24 @@ chmod +x "$bin/xray"
 cat >"$bin/jq" <<'SH'
 #!/usr/bin/env bash
 printf 'jq %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+if [ "${1:-}" = "-r" ] && [ "${2:-}" = "--arg" ] && [ "${3:-}" = "domain" ]; then
+  domain="$4"
+  python3 -c '
+import json
+import sys
+
+domain = sys.argv[1]
+data = json.load(sys.stdin)
+matches = []
+for zone in data.get("result", []):
+    name = zone.get("name", "")
+    if domain == name or domain.endswith("." + name):
+        matches.append((len(name), zone.get("id", "")))
+matches.sort(reverse=True)
+print(matches[0][1] if matches else "")
+' "$domain"
+  exit 0
+fi
 if [ "$#" -ne 3 ] || [ "$1" != "-e" ] || [ "$2" != "." ]; then
   printf 'unexpected jq command shape\n' >&2
   exit 2
@@ -218,6 +236,42 @@ grep -q "acme.sh --install-cert -d new.example.com --fullchain-file $tmp/etc/ssl
 
 bo_cert_cmd renew
 grep -q 'acme.sh --renew -d new.example.com --force' "$BLACKOUT_TEST_LOG"
+
+curl() {
+  printf 'curl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+  case " $* " in
+    *"api.cloudflare.com/client/v4/zones"*)
+      cat <<'JSON'
+{"success":true,"result":[{"id":"zone-example","name":"example.com"},{"id":"zone-wild","name":"wild.example.com"}]}
+JSON
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+}
+
+export BLACKOUT_CF_TOKEN=cf-token
+bo_cert_cmd issue admin@example.com '*.wild.example.com'
+grep -q 'acme.sh --issue --dns dns_cf -d wild.example.com -d \*.wild.example.com' "$BLACKOUT_TEST_LOG"
+grep -q "acme.sh --install-cert -d wild.example.com --fullchain-file $tmp/etc/ssl/fullchain.pem --key-file $tmp/etc/ssl/privkey.pem" "$BLACKOUT_TEST_LOG"
+[ "$(bo_setting_get cloudflare_zone_id)" = "zone-wild" ]
+grep -q 'BLACKOUT_CF_TOKEN="cf-token"' "$BLACKOUT_ENV"
+if grep -q 'BLACKOUT_CF_ZONE_ID=' "$BLACKOUT_ENV"; then
+  echo "Cloudflare zone ID should not be persisted in env" >&2
+  exit 1
+fi
+
+bo_cert_cmd renew
+grep -q 'acme.sh --renew -d wild.example.com --force' "$BLACKOUT_TEST_LOG"
+
+bo_cert_cmd change-domain '*.change.example.com'
+[ "$(bo_setting_get domain)" = "*.change.example.com" ]
+[ "$(bo_setting_get cloudflare_zone_id)" = "zone-example" ]
+grep -q 'acme.sh --issue --dns dns_cf -d change.example.com -d \*.change.example.com' "$BLACKOUT_TEST_LOG"
+grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
+unset BLACKOUT_CF_TOKEN
+bo_setting_set domain new.example.com
 
 starts_before="$(grep -c 'systemctl start nginx' "$BLACKOUT_TEST_LOG")"
 export BLACKOUT_ACME_FAIL_ISSUE=1

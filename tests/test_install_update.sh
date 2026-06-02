@@ -114,6 +114,15 @@ bo_test_prompt_locals() {
 }
 bo_test_prompt_locals
 
+prompt_cf_input="$tmp/prompt-cf-input"
+printf 'cf-secret\n' >"$prompt_cf_input"
+bo_test_cloudflare_prompt_locals() {
+  local token
+  bo_install_prompt_cloudflare token <"$prompt_cf_input"
+  [ "$token" = "cf-secret" ]
+}
+bo_test_cloudflare_prompt_locals
+
 dry_log="$tmp/install-dry.log"
 export BLACKOUT_DRY_RUN_LOG="$dry_log"
 bo_install_apt_packages
@@ -134,6 +143,18 @@ grep -q 'BLACKOUT_REPO="https://github.com/148943/blackout.git"' "$env_file"
 grep -q 'BLACKOUT_BRANCH="master"' "$env_file"
 grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
 grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"
+[ "$(stat -c %a "$env_file")" = "600" ]
+
+export BLACKOUT_CF_TOKEN=cf-secret
+cf_env_file="$tmp/blackout-cf.env"
+bo_install_write_env "$cf_env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db" "$tmp/etc/blackout" "$tmp/state"
+grep -q 'BLACKOUT_CF_TOKEN="cf-secret"' "$cf_env_file"
+if grep -q 'BLACKOUT_CF_ZONE_ID=' "$cf_env_file"; then
+  echo "Cloudflare zone ID should not be written by installer" >&2
+  exit 1
+fi
+[ "$(stat -c %a "$cf_env_file")" = "600" ]
+unset BLACKOUT_CF_TOKEN
 
 cron_file="$tmp/etc/cron.d/blackout-expire"
 
