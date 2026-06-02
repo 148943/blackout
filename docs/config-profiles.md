@@ -72,4 +72,4 @@ blackout config reload
 blackout config ws-path /newpath
 ```
 
-The WebSocket path must start with `/` and may contain letters, numbers, `.`, `_`, `~`, `/`, and `-`. Changing it stores the new `ws_path`, reapplies the current profile, restarts Xray, reloads Nginx, and makes newly generated share links use the new path.
+The WebSocket path may be `/`, or it must start with `/` and may contain letters, numbers, `.`, `_`, `~`, `/`, and `-`. Changing it stores the new `ws_path`, reapplies the current profile, restarts Xray, reloads Nginx, and makes newly generated share links use the new path.

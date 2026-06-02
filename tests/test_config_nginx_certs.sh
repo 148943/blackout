@@ -160,6 +160,13 @@ grep -q 'location = /stealth' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/stealth' "$tmp/etc/nginx/sites-available/blackout"
 grep -q '"path": "/stealth"' "$BLACKOUT_XRAY_CONFIG"
 
+bo_config_cmd ws-path /
+[ "$(bo_setting_get ws_path)" = "/" ]
+grep -q 'location = /' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/"' "$BLACKOUT_XRAY_CONFIG"
+bo_config_cmd ws-path /stealth
+
 if ( bo_config_cmd ws-path '/bad path' ) >/dev/null 2>&1; then
   echo "unsafe config ws-path accepted" >&2
   exit 1
