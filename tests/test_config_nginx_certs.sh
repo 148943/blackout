@@ -117,15 +117,15 @@ bo_db_user_insert replayed 00000000-0000-0000-0000-000000000021 replayed@example
 bo_db_user_insert locked 00000000-0000-0000-0000-000000000022 locked@example 0 locked 100 4102444800
 bo_db_user_insert expired 00000000-0000-0000-0000-000000000023 expired@example 0 active 100 101
 
-[ "$(bo_config_current)" = "vless-ws-nginx" ]
-bo_config_list | grep -qx 'vless-ws-nginx'
+[ "$(bo_config_current)" = "default" ]
+bo_config_list | grep -qx 'default'
 
-bo_config_switch vless-ws-nginx
+bo_config_switch default
 
 [ -s "$BLACKOUT_XRAY_CONFIG" ]
 [ -s "$tmp/etc/nginx/sites-available/blackout" ]
 [ -L "$tmp/etc/nginx/sites-enabled/blackout" ]
-[ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
+[ "$(bo_setting_get profile)" = "default" ]
 
 jq -e . "$BLACKOUT_XRAY_CONFIG" >/dev/null
 rendered_inbound="$(
@@ -176,14 +176,14 @@ bo_config_cmd ws-path /blackout
 
 bo_setting_set ws_path /reload
 bo_config_cmd reload
-[ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
+[ "$(bo_setting_get profile)" = "default" ]
 grep -q 'location = /reload' "$tmp/etc/nginx/sites-available/blackout"
 grep -q '"path": "/reload"' "$BLACKOUT_XRAY_CONFIG"
 bo_config_cmd ws-path /blackout
 
 sqlite3 "$BLACKOUT_DB" "DELETE FROM settings WHERE key = 'xray_api_port';"
 export BLACKOUT_XRAY_API_PORT=61001
-bo_config_switch vless-ws-nginx
+bo_config_switch default
 rendered_api_port="$(
   python3 - "$BLACKOUT_XRAY_CONFIG" <<'PY'
 import json
@@ -204,8 +204,8 @@ unset BLACKOUT_XRAY_API_PORT
 
 before_nginx="$(cat "$tmp/etc/nginx/sites-available/blackout")"
 mkdir -p "$tmp/configs/bad-nginx"
-cp "$tmp/configs/vless-ws-nginx/xray.conf" "$tmp/configs/bad-nginx/xray.conf"
-cp "$tmp/configs/vless-ws-nginx/share.template" "$tmp/configs/bad-nginx/share.template"
+cp "$tmp/configs/default/xray.conf" "$tmp/configs/bad-nginx/xray.conf"
+cp "$tmp/configs/default/share.template" "$tmp/configs/bad-nginx/share.template"
 printf 'FAIL_NGINX\n' >"$tmp/configs/bad-nginx/nginx.conf"
 export BLACKOUT_NGINX_FAIL_ON_BAD_CONFIG=1
 if bo_config_switch bad-nginx >/dev/null 2>&1; then
@@ -214,17 +214,17 @@ if bo_config_switch bad-nginx >/dev/null 2>&1; then
 fi
 unset BLACKOUT_NGINX_FAIL_ON_BAD_CONFIG
 [ "$(cat "$tmp/etc/nginx/sites-available/blackout")" = "$before_nginx" ]
-[ "$(bo_setting_get profile)" = "vless-ws-nginx" ]
+[ "$(bo_setting_get profile)" = "default" ]
 
 bo_setting_set domain 'bad;example.com'
-if ( bo_config_switch vless-ws-nginx ) >/dev/null 2>&1; then
+if ( bo_config_switch default ) >/dev/null 2>&1; then
   echo "unsafe domain accepted" >&2
   exit 1
 fi
 bo_setting_set domain example.com
 
 bo_setting_set ws_path '/bad path'
-if ( bo_config_switch vless-ws-nginx ) >/dev/null 2>&1; then
+if ( bo_config_switch default ) >/dev/null 2>&1; then
   echo "unsafe ws_path accepted" >&2
   exit 1
 fi

@@ -1,6 +1,6 @@
 # Blackout
 
-Blackout is a Bash management suite for Debian 12 VPS hosts running Xray-core behind an Nginx reverse proxy. It installs and manages the default `vless-ws-nginx` profile, TLS certificates from `acme.sh`, SQLite-backed users, automated expiry cleanup, Xray API runtime user changes, Xray core updates, and Blackout script updates.
+Blackout is a Bash management suite for Debian 12 VPS hosts running Xray-core behind an Nginx reverse proxy. It installs and manages the `default` profile, TLS certificates from `acme.sh`, SQLite-backed users, automated expiry cleanup, Xray API runtime user changes, Xray core updates, and Blackout script updates.
 
 Routine user operations use the local Xray API instead of restarting Xray. State is stored in SQLite at `/var/lib/blackout/blackout.db` after installation.
 
@@ -45,7 +45,7 @@ blackout user link USERNAME
 - `ACME email`: the email address used by `acme.sh`.
 - `Cloudflare API token`: shown only when the domain starts with `*.`.
 
-The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `vless-ws-nginx` Xray and Nginx configs, and enables Xray and Nginx.
+The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, and enables Xray and Nginx.
 
 Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domains use Cloudflare DNS validation and automatically request both the base domain and wildcard name, for example `new.example.com` and `*.new.example.com`.
 
@@ -101,7 +101,7 @@ blackout update check
 blackout update
 ```
 
-`blackout update` updates the Blackout scripts and config templates only. It clones the configured Blackout repository, backs up the current CLI/install tree, replaces `/usr/local/bin/blackout`, `lib/`, and `configs/`, records the installed Blackout commit in `/etc/blackout/blackout.env`, and leaves users, certificates, domain settings, and the installed Xray core untouched.
+`blackout update` updates the Blackout scripts and the shipped default config only. It clones the configured Blackout repository, backs up the current CLI/install tree, replaces `/usr/local/bin/blackout`, `lib/`, and `/opt/blackout/configs/default`, records the installed Blackout commit in `/etc/blackout/blackout.env`, and leaves users, certificates, domain settings, custom config folders, and the installed Xray core untouched.
 
 ## Updating Xray Core
 

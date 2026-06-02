@@ -87,11 +87,11 @@ blackout config reload
 
 - `list`: lists profile directories under the configured Blackout config directory.
 - `switch PROFILE`: renders the selected profile, validates Xray JSON with `jq`, installs the Nginx site, runs `nginx -t`, writes the active Xray config and share template, stores profile settings, restarts Xray, and reloads Nginx.
-- `current`: prints the stored active profile, defaulting to `vless-ws-nginx`.
+- `current`: prints the stored active profile, defaulting to `default`.
 - `ws-path /newpath`: validates and stores the WebSocket path, then reapplies the current profile. This restarts Xray and reloads Nginx.
 - `reload`: reapplies the current profile with the stored settings. This restarts Xray and reloads Nginx.
 
-The shipped profile is `vless-ws-nginx`.
+The shipped profile is `default`.
 
 ## Blackout Updates
 
@@ -101,4 +101,4 @@ blackout update
 ```
 
 - `update check`: read-only. Prints the installed Blackout version, remote branch commit, and status such as latest, update available, or unknown installed version. It does not modify files.
-- `update`: updates Blackout scripts and config templates from the configured repository and branch, then records the installed commit in `/etc/blackout/blackout.env`. It does not update Xray core.
+- `update`: updates Blackout scripts and the shipped `/opt/blackout/configs/default` profile from the configured repository and branch, then records the installed commit in `/etc/blackout/blackout.env`. It does not update Xray core or custom config folders.

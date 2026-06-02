@@ -42,7 +42,7 @@ vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOM
 
 ## Default Profile
 
-The shipped profile is `vless-ws-nginx`.
+The shipped profile is `default`.
 
 - Xray listens on a Unix socket at `/dev/shm/blackout-vless.sock`.
 - Nginx terminates TLS on port `443` and proxies WebSocket traffic to the Xray socket.
@@ -50,10 +50,12 @@ The shipped profile is `vless-ws-nginx`.
 - The local Xray API listens on `127.0.0.1` using the configured API port, defaulting to `60001`.
 - Xray `HandlerService` and `StatsService` are enabled for runtime user management and stats.
 
+`blackout update` overwrites the shipped `default` profile only. Other folders under `/opt/blackout/configs` are treated as custom profiles and are preserved.
+
 ## Switching Profiles
 
 ```bash
-blackout config switch vless-ws-nginx
+blackout config switch default
 ```
 
 The switch command requires a stored domain setting. It renders the profile with the stored domain, WebSocket path, and Xray API port; validates Xray JSON with `jq`; installs and tests the Nginx site; writes the Xray config; writes `/etc/blackout/share.template`; stores the active profile; restarts Xray; and reloads Nginx.

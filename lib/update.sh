@@ -63,10 +63,10 @@ bo_update_write_version() {
 bo_update_copy_tree() {
   local src="$1" install_dir="$2"
   [ -n "$install_dir" ] && [ "$install_dir" != "/" ] || bo_fail "unsafe install dir: $install_dir"
-  mkdir -p "$install_dir"
-  rm -rf "$install_dir/lib" "$install_dir/configs"
+  mkdir -p "$install_dir" "$install_dir/configs"
+  rm -rf "$install_dir/lib" "$install_dir/configs/default"
   cp -a "$src/lib" "$install_dir/lib"
-  cp -a "$src/configs" "$install_dir/configs"
+  cp -a "$src/configs/default" "$install_dir/configs/default"
 }
 
 bo_update_run() {

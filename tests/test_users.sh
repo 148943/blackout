@@ -150,7 +150,7 @@ printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless aiman'
 bo_user_unlock aiman
 bo_db_user_status aiman | grep -qx active
 
-bo_setting_set profile vless-ws-nginx
+bo_setting_set profile default
 bo_setting_set domain '*.vpn.example'
 bo_setting_set ws_path /vless
 bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"
@@ -167,8 +167,8 @@ fi
 rm -f "$BLACKOUT_ETC_DIR/default-links.out"
 
 BLACKOUT_CONFIG_DIR="$BLACKOUT_ETC_DIR/configs"
-mkdir -p "$BLACKOUT_CONFIG_DIR/vless-ws-nginx"
-cat >"$BLACKOUT_CONFIG_DIR/vless-ws-nginx/share.template" <<'TPL'
+mkdir -p "$BLACKOUT_CONFIG_DIR/default"
+cat >"$BLACKOUT_CONFIG_DIR/default/share.template" <<'TPL'
 VLESS WS TLS
 vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
 

@@ -59,7 +59,7 @@ blackout cert renew
 ```bash
 blackout cert change-domain example.net
 blackout cert issue admin@example.com example.net
-blackout config switch vless-ws-nginx
+blackout config switch default
 ```
 
 For normal domains, `change-domain` updates the stored domain setting. Issue a certificate for the new domain afterward, then switch or re-render the active profile so generated configs and links use the new value.

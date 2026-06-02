@@ -111,7 +111,7 @@ bo_install_prepare_xray() {
   bo_xray_install_service "$service_path" "$config_path"
   BLACKOUT_XRAY_NO_RESTART=1 bo_install_xray_initial
   unset BLACKOUT_XRAY_NO_RESTART
-  bo_config_switch vless-ws-nginx
+  bo_config_switch default
   bo_install_expire_cron
 }
 

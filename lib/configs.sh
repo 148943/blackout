@@ -21,7 +21,7 @@ if ! declare -F bo_xray_api_port >/dev/null 2>&1; then
   . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/xray.sh"
 fi
 
-BLACKOUT_DEFAULT_PROFILE="${BLACKOUT_DEFAULT_PROFILE:-vless-ws-nginx}"
+BLACKOUT_DEFAULT_PROFILE="${BLACKOUT_DEFAULT_PROFILE:-default}"
 BLACKOUT_XRAY_CONFIG="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
 
 bo_config_setting() {

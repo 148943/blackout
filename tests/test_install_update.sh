@@ -19,11 +19,11 @@ case "$1" in
     ;;
   clone)
     dest="${@: -1}"
-    mkdir -p "$dest/lib" "$dest/configs/vless-ws-nginx"
+    mkdir -p "$dest/lib" "$dest/configs/default"
     printf '#!/usr/bin/env bash\n' >"$dest/blackout"
     chmod +x "$dest/blackout"
     printf 'new lib\n' >"$dest/lib/common.sh"
-    printf '{}\n' >"$dest/configs/vless-ws-nginx/xray.conf"
+    printf '{}\n' >"$dest/configs/default/xray.conf"
     ;;
   *)
     exit 2
@@ -79,6 +79,9 @@ bin_path="$tmp/usr/local/bin/blackout"
 mkdir -p "$(dirname "$bin_path")" "$install_dir/lib" "$install_dir/configs" "$tmp/etc/blackout" "$tmp/var/lib/blackout"
 printf 'old cli\n' >"$bin_path"
 printf 'old lib\n' >"$install_dir/lib/old.sh"
+mkdir -p "$install_dir/configs/default" "$install_dir/configs/custom"
+printf 'old default\n' >"$install_dir/configs/default/xray.conf"
+printf 'custom config\n' >"$install_dir/configs/custom/xray.conf"
 printf 'BLACKOUT_DOMAIN="domain should remain"\nBLACKOUT_VERSION="old"\n' >"$tmp/etc/blackout/blackout.env"
 printf 'db should remain\n' >"$tmp/var/lib/blackout/blackout.db"
 
@@ -91,7 +94,8 @@ bo_update_cmd run
 
 [ -x "$bin_path" ]
 [ -f "$install_dir/lib/common.sh" ]
-[ -f "$install_dir/configs/vless-ws-nginx/xray.conf" ]
+[ "$(cat "$install_dir/configs/default/xray.conf")" = "{}" ]
+[ "$(cat "$install_dir/configs/custom/xray.conf")" = "custom config" ]
 [ ! -e "$install_dir/lib/old.sh" ]
 grep -q 'BLACKOUT_DOMAIN="domain should remain"' "$BLACKOUT_ENV"
 grep -q 'BLACKOUT_VERSION="0123456789abcdef0123456789abcdef01234567"' "$BLACKOUT_ENV"

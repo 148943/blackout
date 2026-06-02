@@ -64,7 +64,7 @@ blackout user unlock USERNAME
 
 Runtime user management depends on the default profile's local Xray API and stats services.
 
-Check that the active profile is `vless-ws-nginx`:
+Check that the active profile is `default`:
 
 ```bash
 blackout config current
@@ -73,7 +73,7 @@ blackout config current
 Re-render the profile after confirming the domain and certificate:
 
 ```bash
-blackout config switch vless-ws-nginx
+blackout config switch default
 ```
 
 ## Blackout Updates Versus Xray Updates

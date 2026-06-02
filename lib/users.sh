@@ -303,7 +303,7 @@ bo_user_online() {
 
 bo_user_share_template() {
   local profile template
-  profile="$(bo_user_setting profile vless-ws-nginx)"
+  profile="$(bo_user_setting profile default)"
   template="$BLACKOUT_CONFIG_DIR/$profile/share.template"
   if [ -f "$template" ]; then
     printf '%s\n' "$template"
