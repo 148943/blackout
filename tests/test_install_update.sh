@@ -12,6 +12,7 @@ mkdir -p "$bin"
 cat >"$bin/git" <<'SH'
 #!/usr/bin/env bash
 printf 'git %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+printf 'git-cwd %s\n' "$(pwd)" >>"$BLACKOUT_TEST_LOG"
 case "$1" in
   ls-remote)
     printf '0123456789abcdef0123456789abcdef01234567\trefs/heads/master\n'
@@ -46,6 +47,8 @@ export BLACKOUT_TEST_LOG="$tmp/calls.log"
 export NO_COLOR=1
 export BLACKOUT_VERSION="test-version"
 export BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
+export BLACKOUT_SAFE_CWD="$tmp/stable-cwd"
+mkdir -p "$BLACKOUT_SAFE_CWD"
 
 . "$ROOT_DIR/lib/common.sh"
 . "$ROOT_DIR/lib/update.sh"
@@ -55,6 +58,7 @@ grep -q 'installed: test-version' <<<"$check_output"
 grep -q 'remote master: 0123456789abcdef0123456789abcdef01234567' <<<"$check_output"
 grep -q 'status: update available' <<<"$check_output"
 grep -q 'git ls-remote https://github.com/148943/blackout.git refs/heads/master' "$BLACKOUT_TEST_LOG"
+grep -q "git-cwd $BLACKOUT_SAFE_CWD" "$BLACKOUT_TEST_LOG"
 
 BLACKOUT_VERSION="0123456789abcdef0123456789abcdef01234567"
 check_output="$(bo_update_check)"

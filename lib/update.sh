@@ -17,11 +17,24 @@ bo_update_branch() {
   printf '%s\n' "${BLACKOUT_BRANCH:-master}"
 }
 
+bo_update_stable_cwd() {
+  cd "${BLACKOUT_SAFE_CWD:-/}" 2>/dev/null || cd /tmp || bo_fail "unable to enter stable working directory"
+}
+
+bo_update_remote_version() {
+  local repo="$1" branch="$2" line
+  bo_update_stable_cwd
+  line="$(git ls-remote "$repo" "refs/heads/$branch")" || return 1
+  line="${line%%$'\t'*}"
+  line="${line%% *}"
+  printf '%s\n' "$line"
+}
+
 bo_update_check() {
   local repo branch remote installed
   repo="$(bo_update_repo)"
   branch="$(bo_update_branch)"
-  remote="$(git ls-remote "$repo" "refs/heads/$branch" | awk '{print $1}')"
+  remote="$(bo_update_remote_version "$repo" "$branch" || true)"
   installed="${BLACKOUT_VERSION:-dev}"
   bo_log "installed: $installed"
   bo_log "remote $branch: ${remote:-unknown}"
@@ -59,9 +72,10 @@ bo_update_copy_tree() {
 bo_update_run() {
   bo_need_root
   local repo branch remote update_tmp backup bin_path install_dir
+  bo_update_stable_cwd
   repo="$(bo_update_repo)"
   branch="$(bo_update_branch)"
-  remote="$(git ls-remote "$repo" "refs/heads/$branch" | awk '{print $1}')"
+  remote="$(bo_update_remote_version "$repo" "$branch")"
   [ -n "$remote" ] || bo_fail "unable to resolve remote version for $repo@$branch"
   bin_path="${BLACKOUT_BIN_PATH:-/usr/local/bin/blackout}"
   install_dir="${BLACKOUT_INSTALL_DIR:-/opt/blackout}"
