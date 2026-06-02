@@ -155,9 +155,11 @@ bo_setting_set domain '*.vpn.example'
 bo_setting_set ws_path /vless
 bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'VLESS WS HTTP:' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=ws&security=none&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
+if grep -q 'VLESS WS HTTP' "$BLACKOUT_ETC_DIR/default-links.out"; then
+  echo "default HTTP share link rendered" >&2
+  exit 1
+fi
 if grep -q '\*\.vpn.example' "$BLACKOUT_ETC_DIR/default-links.out"; then
   echo "wildcard domain leaked into share link" >&2
   exit 1
