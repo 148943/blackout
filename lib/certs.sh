@@ -76,7 +76,7 @@ bo_cert_cloudflare_token() {
 }
 
 bo_cert_cloudflare_zone_id() {
-  local domain="${1:?domain required}" token="${2:?token required}" zone_id json
+  local domain="${1:?domain required}" token="${2:?token required}" zone_id json candidate
   zone_id="${CF_Zone_ID:-}"
   if [ -n "$zone_id" ]; then
     printf '%s\n' "$zone_id"
@@ -84,15 +84,15 @@ bo_cert_cloudflare_zone_id() {
   fi
 
   bo_need_cmd jq
-  json="$(curl -fsS -H "Authorization: Bearer $token" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones?per_page=50")" || bo_fail "failed to query Cloudflare zones"
-  zone_id="$(
-    jq -r --arg domain "$domain" '
-      [.result[]? | select($domain == .name or ($domain | endswith("." + .name))) | { id, name, length: (.name | length) }]
-      | sort_by(.length)
-      | reverse
-      | .[0].id // empty
-    ' <<<"$json"
-  )"
+  candidate="$domain"
+  while [[ "$candidate" == *.* ]]; do
+    json="$(curl -fsS -H "Authorization: Bearer $token" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones?name=$candidate")" || bo_fail "failed to query Cloudflare zones"
+    zone_id="$(jq -r '.result | arrays | .[0] | objects | .id // empty' <<<"$json")"
+    if [ -n "$zone_id" ]; then
+      break
+    fi
+    candidate="${candidate#*.}"
+  done
   [ -n "$zone_id" ] || bo_fail "no Cloudflare zone found for $domain"
   printf '%s\n' "$zone_id"
 }

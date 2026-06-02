@@ -50,22 +50,18 @@ chmod +x "$bin/xray"
 cat >"$bin/jq" <<'SH'
 #!/usr/bin/env bash
 printf 'jq %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
-if [ "${1:-}" = "-r" ] && [ "${2:-}" = "--arg" ] && [ "${3:-}" = "domain" ]; then
-  domain="$4"
+if [ "${1:-}" = "-r" ] && [ "${2:-}" = ".result | arrays | .[0] | objects | .id // empty" ]; then
   python3 -c '
 import json
 import sys
 
-domain = sys.argv[1]
 data = json.load(sys.stdin)
-matches = []
-for zone in data.get("result", []):
-    name = zone.get("name", "")
-    if domain == name or domain.endswith("." + name):
-        matches.append((len(name), zone.get("id", "")))
-matches.sort(reverse=True)
-print(matches[0][1] if matches else "")
-' "$domain"
+result = data.get("result")
+if isinstance(result, list) and result and isinstance(result[0], dict):
+    print(result[0].get("id", ""))
+else:
+    print("")
+'
   exit 0
 fi
 if [ "$#" -ne 3 ] || [ "$1" != "-e" ] || [ "$2" != "." ]; then
@@ -240,9 +236,19 @@ grep -q 'acme.sh --renew -d new.example.com --force' "$BLACKOUT_TEST_LOG"
 curl() {
   printf 'curl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
   case " $* " in
-    *"api.cloudflare.com/client/v4/zones"*)
+    *"api.cloudflare.com/client/v4/zones?name=wild.example.com"*)
       cat <<'JSON'
-{"success":true,"result":[{"id":"zone-example","name":"example.com"},{"id":"zone-wild","name":"wild.example.com"}]}
+{"success":true,"result":[{"id":"zone-wild","name":"wild.example.com"}]}
+JSON
+      ;;
+    *"api.cloudflare.com/client/v4/zones?name=example.com"*)
+      cat <<'JSON'
+{"success":true,"result":[{"id":"zone-example","name":"example.com"}]}
+JSON
+      ;;
+    *"api.cloudflare.com/client/v4/zones?name="*)
+      cat <<'JSON'
+{"success":true,"result":[]}
 JSON
       ;;
     *)
@@ -269,6 +275,8 @@ bo_cert_cmd change-domain '*.change.example.com'
 [ "$(bo_setting_get domain)" = "*.change.example.com" ]
 [ "$(bo_setting_get cloudflare_zone_id)" = "zone-example" ]
 grep -q 'acme.sh --issue --dns dns_cf -d change.example.com -d \*.change.example.com' "$BLACKOUT_TEST_LOG"
+grep -q 'curl .*zones?name=change.example.com' "$BLACKOUT_TEST_LOG"
+grep -q 'curl .*zones?name=example.com' "$BLACKOUT_TEST_LOG"
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
 unset BLACKOUT_CF_TOKEN
 bo_setting_set domain new.example.com
