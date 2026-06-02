@@ -55,8 +55,17 @@ bo_config_validate_inputs() {
   esac
 }
 
+bo_config_template_domain() {
+  local domain="$1"
+  if [[ "$domain" == \*.* ]]; then
+    printf '%s\n' "${domain#*.}"
+  else
+    printf '%s\n' "$domain"
+  fi
+}
+
 bo_config_switch() {
-  local profile="${1:?profile required}" profile_dir domain ws_path xray_api_port stage nginx_snapshot
+  local profile="${1:?profile required}" profile_dir domain template_domain ws_path xray_api_port stage nginx_snapshot
   profile_dir="$(bo_config_profile_dir "$profile")"
   [ -d "$profile_dir" ] || bo_fail "unknown profile: $profile"
   [ -f "$profile_dir/xray.conf" ] || bo_fail "missing xray template: $profile"
@@ -68,14 +77,15 @@ bo_config_switch() {
   ws_path="$(bo_config_setting ws_path /vless)"
   xray_api_port="$(bo_xray_api_port)" || return 1
   bo_config_validate_inputs "$domain" "$ws_path" "$xray_api_port"
+  template_domain="$(bo_config_template_domain "$domain")"
 
   stage="$(mktemp -d)"
 
   bo_render_template "$profile_dir/xray.conf" \
-    DOMAIN "$domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" \
+    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" \
     >"$stage/xray.conf"
   bo_render_template "$profile_dir/nginx.conf" \
-    DOMAIN "$domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" \
+    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" \
     >"$stage/nginx.conf"
   cp "$profile_dir/share.template" "$stage/share.template"
 

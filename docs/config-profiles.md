@@ -22,7 +22,7 @@ nginx.conf
 share.template
 ```
 
-Templates use Blackout placeholders such as `{{DOMAIN}}`, `{{WS_PATH}}`, `{{XRAY_API_PORT}}`, `{{UUID}}`, and `{{USERNAME}}`.
+Templates use Blackout placeholders such as `{{DOMAIN}}`, `{{WS_PATH}}`, `{{XRAY_API_PORT}}`, `{{UUID}}`, and `{{USERNAME}}`. If the stored domain is wildcard, `{{DOMAIN}}` renders as the base domain, for example `*.new.example.com` becomes `new.example.com`.
 
 ## Share Templates
 

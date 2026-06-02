@@ -223,6 +223,16 @@ if ( bo_config_switch default ) >/dev/null 2>&1; then
 fi
 bo_setting_set domain example.com
 
+bo_setting_set domain '*.wild.example.com'
+bo_config_switch default
+grep -q 'server_name wild.example.com;' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_set_header Host wild.example.com;' "$tmp/etc/nginx/sites-available/blackout"
+if grep -q '\*\.wild.example.com' "$tmp/etc/nginx/sites-available/blackout" "$BLACKOUT_XRAY_CONFIG"; then
+  echo "wildcard domain leaked into rendered config" >&2
+  exit 1
+fi
+bo_setting_set domain example.com
+
 bo_setting_set ws_path '/bad path'
 if ( bo_config_switch default ) >/dev/null 2>&1; then
   echo "unsafe ws_path accepted" >&2
