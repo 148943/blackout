@@ -151,10 +151,22 @@ bo_user_unlock aiman
 bo_db_user_status aiman | grep -qx active
 
 bo_setting_set profile vless-ws-nginx
-bo_setting_set domain vpn.example
+bo_setting_set domain '*.vpn.example'
 bo_setting_set ws_path /vless
-bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
-cat >"$BLACKOUT_ETC_DIR/share.template" <<'TPL'
+bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'VLESS WS HTTP:' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=ws&security=none&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
+if grep -q '\*\.vpn.example' "$BLACKOUT_ETC_DIR/default-links.out"; then
+  echo "wildcard domain leaked into share link" >&2
+  exit 1
+fi
+rm -f "$BLACKOUT_ETC_DIR/default-links.out"
+
+BLACKOUT_CONFIG_DIR="$BLACKOUT_ETC_DIR/configs"
+mkdir -p "$BLACKOUT_CONFIG_DIR/vless-ws-nginx"
+cat >"$BLACKOUT_CONFIG_DIR/vless-ws-nginx/share.template" <<'TPL'
 VLESS WS TLS
 vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
 
@@ -166,7 +178,8 @@ grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'Clash Meta:' "$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman-clash' "$BLACKOUT_ETC_DIR/links.out"
-rm -f "$BLACKOUT_ETC_DIR/share.template" "$BLACKOUT_ETC_DIR/links.out"
+rm -rf "$BLACKOUT_CONFIG_DIR" "$BLACKOUT_ETC_DIR/links.out"
+BLACKOUT_CONFIG_DIR="$ROOT_DIR/configs"
 
 BLACKOUT_TEST_ONLINE_COUNTER="$BLACKOUT_ETC_DIR/online-counter"
 printf '0\n' >"$BLACKOUT_TEST_ONLINE_COUNTER"

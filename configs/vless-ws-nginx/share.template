@@ -1,2 +1,5 @@
 VLESS WS TLS
 vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+
+VLESS WS HTTP
+vless://{{UUID}}@{{DOMAIN}}:80?type=ws&security=none&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}

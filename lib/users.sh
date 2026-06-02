@@ -304,17 +304,26 @@ bo_user_online() {
 bo_user_share_template() {
   local profile template
   profile="$(bo_user_setting profile vless-ws-nginx)"
-  template="$BLACKOUT_ETC_DIR/share.template"
+  template="$BLACKOUT_CONFIG_DIR/$profile/share.template"
   if [ -f "$template" ]; then
     printf '%s\n' "$template"
     return 0
   fi
-  template="$BLACKOUT_CONFIG_DIR/$profile/share.template"
+  template="$BLACKOUT_ETC_DIR/share.template"
   if [ ! -f "$template" ]; then
     printf 'missing share template: %s\n' "$profile" >&2
     return 1
   fi
   printf '%s\n' "$template"
+}
+
+bo_user_share_domain() {
+  local domain="$1"
+  if [[ "$domain" == \*.* ]]; then
+    printf '%s\n' "${domain#*.}"
+  else
+    printf '%s\n' "$domain"
+  fi
 }
 
 bo_user_print_links() {
@@ -337,7 +346,7 @@ bo_user_print_links() {
 }
 
 bo_user_link() {
-  local username="$1" row uuid email level status created_at expires_at updated_at domain ws_path template now rendered
+  local username="$1" row uuid email level status created_at expires_at updated_at domain share_domain ws_path template now rendered
   bo_user_validate_username "$username" || return 1
   row="$(bo_db_user_get "$username")" || return 1
   if [ -z "$row" ]; then
@@ -360,9 +369,10 @@ bo_user_link() {
     printf 'domain setting required\n' >&2
     return 1
   fi
+  share_domain="$(bo_user_share_domain "$domain")" || return 1
   ws_path="$(bo_user_setting ws_path /vless)" || return 1
   template="$(bo_user_share_template)" || return 1
-  rendered="$(bo_render_template "$template" UUID "$uuid" DOMAIN "$domain" WS_PATH "$ws_path" USERNAME "$username")" || return 1
+  rendered="$(bo_render_template "$template" UUID "$uuid" DOMAIN "$share_domain" WS_PATH "$ws_path" USERNAME "$username")" || return 1
   bo_user_print_links "$rendered"
 }
 

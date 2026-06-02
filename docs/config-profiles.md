@@ -38,7 +38,7 @@ Clash Meta
 vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}-clash
 ```
 
-`blackout user link USERNAME` prints each pair as a titled link block.
+`blackout user link USERNAME` prints each pair as a titled link block. It reads the active profile's `share.template` from the profile directory first, then falls back to the installed `/etc/blackout/share.template`.
 
 ## Default Profile
 
