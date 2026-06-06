@@ -43,6 +43,9 @@ PY
   esac
 }
 bo_xray_user_stats() {
+  if [ "${BLACKOUT_TEST_STATS_FAIL:-0}" = "1" ]; then
+    return 1
+  fi
   bo_xray_events="${bo_xray_events}stats:$1"$'\n'
   if [ -n "${BLACKOUT_TEST_STATS_LOG:-}" ]; then
     printf '%s\n' "$1" >>"$BLACKOUT_TEST_STATS_LOG"
@@ -96,10 +99,34 @@ done
 bo_user_add aiman 00000000-0000-0000-0000-000000000001 4102444800
 bo_db_user_status aiman | grep -qx active
 bo_user_list | grep -q '2100-01-01 00:00:00 UTC'
+bo_db_users_rows | grep -q $'^aiman\t00000000-0000-0000-0000-000000000001\t0\tactive\t'
+[ "$(bo_db_users_rows | awk -F '\t' 'NR == 1 { print NF }')" = 7 ]
+bo_db_user_insert zulu 00000000-0000-0000-0000-000000000013 zulu@example 0 locked 100 4102444800
+[ "$(bo_db_users_rows | cut -f1 | paste -sd, -)" = "aiman,zulu" ]
+bo_db_user_delete zulu
 printf '%s' "$bo_xray_events" | grep -Eq '^adu:'
 adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu://p' | head -n 1)"
 [ -n "$adu_file" ]
 [ ! -e "$adu_file" ]
+
+bo_user_modify_duration aiman 7d
+after_expiry="$(bo_db_user_get aiman | cut -f7)"
+now="$(date +%s)"
+[ "$after_expiry" -ge "$((now + 604790))" ]
+[ "$after_expiry" -le "$((now + 604810))" ]
+printf '12h\n' | bo_user_modify aiman
+prompt_expiry="$(bo_db_user_get aiman | cut -f7)"
+now="$(date +%s)"
+[ "$prompt_expiry" -ge "$((now + 43190))" ]
+[ "$prompt_expiry" -le "$((now + 43210))" ]
+if bo_user_modify_duration ghost 7d >/dev/null 2>&1; then
+  echo "unknown user duration update succeeded" >&2
+  exit 1
+fi
+if bo_user_modify_duration aiman invalid >/dev/null 2>&1; then
+  echo "invalid duration update succeeded" >&2
+  exit 1
+fi
 
 before_events="$bo_xray_events"
 if bo_user_add aiman 00000000-0000-0000-0000-000000000004 4102444800 2>/dev/null; then
@@ -180,6 +207,24 @@ grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'Clash Meta:' "$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman-clash' "$BLACKOUT_ETC_DIR/links.out"
+bo_user_link_rows aiman >"$BLACKOUT_ETC_DIR/link-rows.out"
+grep -qx $'VLESS WS TLS\tvless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/link-rows.out"
+grep -qx $'Clash Meta\tvless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman-clash' "$BLACKOUT_ETC_DIR/link-rows.out"
+if grep -q '\*\.vpn.example' "$BLACKOUT_ETC_DIR/link-rows.out"; then
+  echo "wildcard domain leaked into structured share links" >&2
+  exit 1
+fi
+
+cat >"$BLACKOUT_CONFIG_DIR/default/share.template" <<'TPL'
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+TPL
+bo_user_link_rows aiman | grep -qx $'\tvless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
+bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
+
+if bo_user_link_rows ghost >/dev/null 2>&1; then
+  echo "unknown user structured link succeeded" >&2
+  exit 1
+fi
 rm -rf "$BLACKOUT_CONFIG_DIR" "$BLACKOUT_ETC_DIR/links.out"
 BLACKOUT_CONFIG_DIR="$ROOT_DIR/configs"
 
@@ -191,6 +236,21 @@ if [ -n "$(bo_user_online 0)" ]; then
 fi
 printf '0\n' >"$BLACKOUT_TEST_ONLINE_COUNTER"
 BLACKOUT_TEST_ONLINE_BUMP=1 bo_user_online 0 | grep -qx 'aiman  status=online  delta=8.0 KiB  total=3.0 MiB'
+printf '0\n' >"$BLACKOUT_TEST_ONLINE_COUNTER"
+BLACKOUT_TEST_ONLINE_BUMP=1 bo_user_online_rows 0 | grep -qx $'aiman\t8192\t3130357'
+if (bo_user_online_rows invalid >/dev/null 2>&1); then
+  echo "invalid structured online sample succeeded" >&2
+  exit 1
+fi
+
+if BLACKOUT_TEST_STATS_FAIL=1 bo_user_online_rows 0 >/dev/null 2>&1; then
+  echo "structured online succeeded despite stats failure" >&2
+  exit 1
+fi
+if BLACKOUT_TEST_STATS_FAIL=1 bo_user_online 0 >/dev/null 2>&1; then
+  echo "human online succeeded despite stats failure" >&2
+  exit 1
+fi
 
 bo_db_user_insert stale 00000000-0000-0000-0000-000000000006 stale@example 0 active 100 101
 bo_xray_events=""
@@ -205,6 +265,10 @@ bo_db_user_insert stale_fail 00000000-0000-0000-0000-000000000008 stale_fail@exa
 bo_xray_api() {
   return 1
 }
+if bo_user_link_rows stale_fail >/dev/null 2>&1; then
+  echo "expired active structured link succeeded despite remove failure" >&2
+  exit 1
+fi
 if bo_user_link stale_fail >/dev/null 2>&1; then
   echo "expired active link succeeded despite remove failure" >&2
   exit 1

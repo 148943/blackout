@@ -84,6 +84,11 @@ bo_db_users_list() {
   sqlite3 -header -column "$BLACKOUT_DB" "SELECT username,status,strftime('%Y-%m-%d %H:%M:%S UTC', expires_at, 'unixepoch') AS expires_at FROM users ORDER BY username;"
 }
 
+bo_db_users_rows() {
+  sqlite3 -separator $'\t' "$BLACKOUT_DB" \
+    "SELECT username,uuid,level,status,created_at,expires_at,updated_at FROM users ORDER BY username;"
+}
+
 bo_db_active_usernames() {
   local now="${1:-$(date +%s)}"
   bo_db_is_integer "$now" || return 1

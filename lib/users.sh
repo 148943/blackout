@@ -197,20 +197,25 @@ bo_user_unlock() {
   bo_db_user_set_status "$username" active || return 1
 }
 
-bo_user_modify() {
-  local username="$1" duration expires_at row
+bo_user_modify_duration() {
+  local username="$1" duration="$2" expires_at row
   bo_user_validate_username "$username" || return 1
   row="$(bo_db_user_get "$username")" || return 1
   if [ -z "$row" ]; then
     printf 'unknown user: %s\n' "$username" >&2
     return 1
   fi
-  read -r -p "New duration (12h, 7d, 1m): " duration
   if ! expires_at="$(bo_expiry_epoch "$duration")"; then
     printf 'invalid duration: %s\n' "$duration" >&2
     return 1
   fi
-  bo_db_user_update "$username" "$expires_at" || return 1
+  bo_db_user_update "$username" "$expires_at"
+}
+
+bo_user_modify() {
+  local username="$1" duration
+  read -r -p "New duration (12h, 7d, 1m): " duration
+  bo_user_modify_duration "$username" "$duration"
 }
 
 bo_user_list() {
@@ -264,7 +269,7 @@ bo_user_stat_value() {
   ' <<<"$stats"
 }
 
-bo_user_online() {
+bo_user_online_rows() {
   local sample username usernames before after after_uplink after_downlink delta_uplink delta_downlink delta total
   local -A before_uplink before_downlink
   sample="${1:-5}"
@@ -294,11 +299,20 @@ bo_user_online() {
     delta=$((delta_uplink + delta_downlink))
     [ "$delta" -gt 0 ] || continue
     total=$((after_uplink + after_downlink))
+    printf '%s\t%s\t%s\n' "$username" "$delta" "$total"
+  done <<<"$usernames"
+}
+
+bo_user_online() {
+  local username delta total rows
+  rows="$(bo_user_online_rows "${1:-5}")" || return 1
+  while IFS=$'\t' read -r username delta total; do
+    [ -n "$username" ] || continue
     printf '%s  status=online  delta=%s  total=%s\n' \
       "$username" \
       "$(bo_user_format_bytes "$delta")" \
       "$(bo_user_format_bytes "$total")"
-  done <<<"$usernames"
+  done <<<"$rows"
 }
 
 bo_user_share_template() {
@@ -326,26 +340,22 @@ bo_user_share_domain() {
   fi
 }
 
-bo_user_print_links() {
-  local rendered="$1" non_empty line name link count
+bo_user_link_pairs() {
+  local rendered="$1" non_empty name link count
   non_empty="$(awk 'NF { print }' <<<"$rendered")"
   count="$(wc -l <<<"$non_empty" | tr -d ' ')"
   if [ "$count" -le 1 ]; then
-    printf '%s\n' "$non_empty"
+    printf '\t%s\n' "$non_empty"
     return
   fi
   while IFS= read -r name; do
     IFS= read -r link || link=""
     [ -n "$name" ] || continue
-    if [ -z "$link" ]; then
-      printf '%s\n' "$name"
-    else
-      printf '%s:\n%s\n\n' "$name" "$link"
-    fi
+    printf '%s\t%s\n' "$name" "$link"
   done <<<"$non_empty"
 }
 
-bo_user_link() {
+bo_user_link_rows() {
   local username="$1" row uuid email level status created_at expires_at updated_at domain share_domain ws_path template now rendered
   bo_user_validate_username "$username" || return 1
   row="$(bo_db_user_get "$username")" || return 1
@@ -373,7 +383,31 @@ bo_user_link() {
   ws_path="$(bo_user_setting ws_path /vless)" || return 1
   template="$(bo_user_share_template)" || return 1
   rendered="$(bo_render_template "$template" UUID "$uuid" DOMAIN "$share_domain" WS_PATH "$ws_path" USERNAME "$username")" || return 1
-  bo_user_print_links "$rendered"
+  bo_user_link_pairs "$rendered"
+}
+
+bo_user_link() {
+  local username="$1" row name link rows_file status
+  rows_file="$(mktemp)" || return 1
+  if bo_user_link_rows "$username" >"$rows_file"; then
+    :
+  else
+    status=$?
+    rm -f "$rows_file"
+    return "$status"
+  fi
+  while IFS= read -r row; do
+    name="${row%%$'\t'*}"
+    link="${row#*$'\t'}"
+    if [ -z "$name" ]; then
+      printf '%s\n' "$link"
+    elif [ -z "$link" ]; then
+      printf '%s\n' "$name"
+    else
+      printf '%s:\n%s\n\n' "$name" "$link"
+    fi
+  done <"$rows_file"
+  rm -f "$rows_file"
 }
 
 bo_user_expire() {
