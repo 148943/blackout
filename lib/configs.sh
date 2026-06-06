@@ -50,6 +50,9 @@ bo_config_validate_inputs() {
   [ "${#domain}" -le 253 ] || bo_fail "domain is too long"
   [[ "$domain" =~ ^(\*\.)?[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]] || bo_fail "domain contains unsafe characters"
   [[ "$ws_path" =~ ^/$|^/[A-Za-z0-9._~/-]+$ ]] || bo_fail "ws_path contains unsafe characters"
+  case "$ws_path" in
+    /blackout-api|/blackout-api/*) bo_fail "ws_path conflicts with API route" ;;
+  esac
   case "$xray_api_port" in
     ''|*[!0-9]*) bo_fail "xray_api_port must be numeric" ;;
   esac

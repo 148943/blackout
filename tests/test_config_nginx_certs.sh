@@ -146,6 +146,8 @@ PY
 grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
 grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/blackout' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'location /blackout-api/' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://127.0.0.1:8787' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'systemctl restart xray' "$BLACKOUT_TEST_LOG"
 grep -q 'replayed replayed 00000000-0000-0000-0000-000000000021 2' "$BLACKOUT_TEST_LOG"
 if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired ' "$BLACKOUT_TEST_LOG"; then
@@ -169,6 +171,15 @@ bo_config_cmd ws-path /stealth
 
 if ( bo_config_cmd ws-path '/bad path' ) >/dev/null 2>&1; then
   echo "unsafe config ws-path accepted" >&2
+  exit 1
+fi
+[ "$(bo_setting_get ws_path)" = "/stealth" ]
+if ( bo_config_cmd ws-path /blackout-api ) >/dev/null 2>&1; then
+  echo "reserved api ws-path accepted" >&2
+  exit 1
+fi
+if ( bo_config_cmd ws-path /blackout-api/v1/users ) >/dev/null 2>&1; then
+  echo "nested reserved api ws-path accepted" >&2
   exit 1
 fi
 [ "$(bo_setting_get ws_path)" = "/stealth" ]
