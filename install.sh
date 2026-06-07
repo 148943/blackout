@@ -232,7 +232,8 @@ bo_install_main() {
   bo_cert_issue "$email" "$domain"
   bo_install_prepare_xray
   systemctl daemon-reload
-  systemctl enable --now xray nginx "$api_service_name"
+  systemctl enable --now xray nginx
+  systemctl disable --now "$api_service_name"
   bo_log "install complete"
 }
 

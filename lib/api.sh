@@ -69,6 +69,167 @@ EOF_SERVICE
   chmod 0644 "$service_path"
 }
 
+bo_api_env_get() {
+  local env_file="$1" key="$2"
+  python3 - "$env_file" "$key" <<'PY'
+import re
+import sys
+
+path, key = sys.argv[1:]
+pattern = re.compile(rf"^{re.escape(key)}=\"(.*)\"$")
+
+try:
+    lines = open(path, encoding="utf-8").read().splitlines()
+except OSError:
+    raise SystemExit(0)
+
+for line in lines:
+    match = pattern.match(line)
+    if not match:
+        continue
+    value = match.group(1)
+    decoded = []
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char == "\\" and index + 1 < len(value) and value[index + 1] in '\\"$`':
+            index += 1
+            char = value[index]
+        decoded.append(char)
+        index += 1
+    print("".join(decoded))
+    break
+PY
+}
+
+bo_api_env_set() {
+  local env_file="$1" key="$2" value="$3"
+  python3 - "$env_file" "$key" "$value" <<'PY'
+import os
+import re
+import sys
+import tempfile
+
+path, key, value = sys.argv[1:]
+directory = os.path.dirname(path) or "."
+os.makedirs(directory, exist_ok=True)
+
+try:
+    with open(path, encoding="utf-8") as env_file:
+        lines = env_file.read().splitlines()
+except FileNotFoundError:
+    lines = []
+
+escaped = (
+    value.replace("\\", "\\\\")
+    .replace('"', '\\"')
+    .replace("$", "\\$")
+    .replace("`", "\\`")
+)
+replacement = f'{key}="{escaped}"'
+pattern = re.compile(rf"^{re.escape(key)}=")
+updated = []
+replaced = False
+for line in lines:
+    if pattern.match(line):
+        if not replaced:
+            updated.append(replacement)
+            replaced = True
+        continue
+    updated.append(line)
+if not replaced:
+    updated.append(replacement)
+
+fd, temporary = tempfile.mkstemp(prefix=".blackout.env.", dir=directory, text=True)
+try:
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as output:
+        output.write("\n".join(updated) + "\n")
+    os.replace(temporary, path)
+finally:
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+PY
+}
+
+bo_api_service_path() {
+  printf '%s\n' "${BLACKOUT_API_SERVICE_PATH:-/etc/systemd/system/blackout-api.service}"
+}
+
+bo_api_service_name() {
+  local service_path
+  service_path="$(bo_api_service_path)"
+  service_path="$(basename "$service_path")"
+  printf '%s\n' "${service_path%.service}"
+}
+
+bo_api_install_current_service() {
+  local install_dir="${BLACKOUT_INSTALL_DIR:-/opt/blackout}" state_dir="${BLACKOUT_STATE_DIR:-/var/lib/blackout}" etc_dir="${BLACKOUT_ETC_DIR:-/etc/blackout}" db_path="${BLACKOUT_DB:-$state_dir/blackout.db}" env_file="${BLACKOUT_ENV:-$etc_dir/blackout.env}"
+  bo_api_install_service \
+    "$(bo_api_service_path)" \
+    "${BLACKOUT_API_SCRIPT:-$install_dir/api/blackout_api.py}" \
+    "$env_file" \
+    "$state_dir" \
+    "$etc_dir" \
+    "$db_path"
+}
+
+bo_api_ensure_env() {
+  local env_file="${1:-${BLACKOUT_ENV:-${BLACKOUT_ETC_DIR:-/etc/blackout}/blackout.env}}" install_dir="${2:-${BLACKOUT_INSTALL_DIR:-/opt/blackout}}" token
+  token="${BLACKOUT_API_TOKEN:-}"
+  if [ -z "$token" ]; then
+    token="$(bo_api_env_get "$env_file" BLACKOUT_API_TOKEN)"
+  fi
+  if [ -z "$token" ]; then
+    token="$(bo_api_generate_token)"
+  fi
+  bo_api_env_set "$env_file" BLACKOUT_API_HOST 127.0.0.1
+  bo_api_env_set "$env_file" BLACKOUT_API_PORT 8787
+  bo_api_env_set "$env_file" BLACKOUT_API_TOKEN "$token"
+  bo_api_env_set "$env_file" BLACKOUT_API_ADAPTER "$install_dir/lib/api.sh"
+}
+
+bo_api_service_enable() {
+  local service_name
+  service_name="$(bo_api_service_name)"
+  bo_api_ensure_env
+  bo_api_install_current_service
+  systemctl daemon-reload
+  systemctl enable --now "$service_name"
+}
+
+bo_api_service_disable() {
+  systemctl disable --now "$(bo_api_service_name)"
+}
+
+bo_api_service_status() {
+  systemctl status "$(bo_api_service_name)"
+}
+
+bo_api_token_rotate() {
+  local env_file="${1:-${BLACKOUT_ENV:-${BLACKOUT_ETC_DIR:-/etc/blackout}/blackout.env}}" install_dir="${2:-${BLACKOUT_INSTALL_DIR:-/opt/blackout}}" token
+  token="$(bo_api_generate_token)"
+  bo_api_env_set "$env_file" BLACKOUT_API_HOST 127.0.0.1
+  bo_api_env_set "$env_file" BLACKOUT_API_PORT 8787
+  bo_api_env_set "$env_file" BLACKOUT_API_TOKEN "$token"
+  bo_api_env_set "$env_file" BLACKOUT_API_ADAPTER "$install_dir/lib/api.sh"
+  systemctl restart "$(bo_api_service_name)" 2>/dev/null || true
+  printf '%s\n' "$token"
+}
+
+bo_api_control_cmd() {
+  local cmd="${1:-status}"; shift || true
+  case "$cmd" in
+    enable) bo_api_service_enable ;;
+    disable) bo_api_service_disable ;;
+    status) bo_api_service_status ;;
+    token|rotate-token|revoke-token) bo_api_token_rotate ;;
+    *) bo_fail "unknown api command: $cmd" ;;
+  esac
+}
+
 bo_api_json_string() {
   python3 -c 'import json,sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "${1:-}"
 }

@@ -105,11 +105,20 @@ blackout update
 
 ## User API
 
-The HTTP user API is managed by systemd, not by a `blackout api` CLI command.
+The HTTP user API is controlled by `blackout api` commands and backed by systemd.
 
 ```bash
+blackout api enable
+blackout api disable
+blackout api status
+blackout api token
 systemctl status blackout-api
 journalctl -u blackout-api -n 100 --no-pager
 ```
+
+- `enable`: installs the current unit, ensures a token exists, and enables/starts `blackout-api`.
+- `disable`: disables and stops `blackout-api`.
+- `status`: prints systemd status for the API service.
+- `token`: rotates the bearer token, revoking the old token.
 
 See [User API](api.md) for endpoints and curl examples.

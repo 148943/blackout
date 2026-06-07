@@ -25,6 +25,18 @@ systemctl status blackout-api
 journalctl -u blackout-api -n 100 --no-pager
 ```
 
+Fresh installs keep the API disabled by default. Enable it only when you need HTTP access:
+
+```bash
+blackout api enable
+```
+
+Disable it again:
+
+```bash
+blackout api disable
+```
+
 ## Token
 
 Every request requires a bearer token:
@@ -41,6 +53,14 @@ printf '%s\n' "$BLACKOUT_API_TOKEN"
 ```
 
 The installer creates the token in `/etc/blackout/blackout.env` with file mode `0600`. `blackout update` preserves an existing token. If an older install has no token, update generates one.
+
+Rotate the token to revoke the old one and create a new one:
+
+```bash
+blackout api token
+```
+
+Restart any client or panel using the old token after rotation.
 
 ## Endpoints
 

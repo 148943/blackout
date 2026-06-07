@@ -75,3 +75,22 @@ blackout config ws-path /newpath
 ```
 
 The WebSocket path may be `/`, or it must start with `/` and may contain letters, numbers, `.`, `_`, `~`, `/`, and `-`. Changing it stores the new `ws_path`, reapplies the current profile, restarts Xray, reloads Nginx, and makes newly generated share links use the new path.
+
+`/blackout-api` and anything below `/blackout-api/` are reserved for the optional user API and cannot be used as the WebSocket path.
+
+## User API Nginx Block
+
+Custom Nginx profile templates should include this block inside the TLS `server` block if you want the optional user API to be reachable through the domain:
+
+```nginx
+location /blackout-api/ {
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_pass http://127.0.0.1:8787;
+}
+```
+
+Do not add a trailing slash to `proxy_pass`; the API server expects to receive the `/blackout-api/v1/...` path unchanged.

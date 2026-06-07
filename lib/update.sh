@@ -208,8 +208,9 @@ bo_update_run() {
     "$etc_dir" \
     "$db_path"
   systemctl daemon-reload
-  systemctl enable "$api_service_name"
-  systemctl restart "$api_service_name"
+  if systemctl is-enabled -q "$api_service_name"; then
+    systemctl restart "$api_service_name"
+  fi
   rm -rf "$update_tmp"
   bo_log "updated Blackout from $repo@$branch ($remote)"
 }

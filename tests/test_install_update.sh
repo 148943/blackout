@@ -96,7 +96,12 @@ export BLACKOUT_ETC_DIR="$tmp/etc/blackout"
 export BLACKOUT_STATE_DIR="$tmp/var/lib/blackout"
 export BLACKOUT_DB="$tmp/var/lib/blackout/blackout.db"
 export BLACKOUT_API_SERVICE_PATH="$tmp/etc/systemd/system/custom-api.service"
-systemctl() { printf 'systemctl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"; }
+systemctl() {
+  printf 'systemctl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
+  if [ "${1:-}" = "is-enabled" ]; then
+    [ "${BLACKOUT_TEST_API_ENABLED:-0}" = "1" ]
+  fi
+}
 
 bo_update_cmd run
 
@@ -116,8 +121,10 @@ grep -q 'BLACKOUT_API_ADAPTER="'"$install_dir/lib/api.sh"'"' "$BLACKOUT_ENV"
 [ -f "$BLACKOUT_API_SERVICE_PATH" ]
 grep -q 'ExecStart=/usr/bin/python3 "'"$install_dir/api/blackout_api.py"'"' "$BLACKOUT_API_SERVICE_PATH"
 grep -q 'systemctl daemon-reload' "$BLACKOUT_TEST_LOG"
-grep -q 'systemctl enable custom-api' "$BLACKOUT_TEST_LOG"
-grep -q 'systemctl restart custom-api' "$BLACKOUT_TEST_LOG"
+if grep -q 'systemctl enable custom-api' "$BLACKOUT_TEST_LOG" || grep -q 'systemctl restart custom-api' "$BLACKOUT_TEST_LOG"; then
+  echo "disabled API service was enabled or restarted during update" >&2
+  exit 1
+fi
 [ "$(cat "$tmp/var/lib/blackout/blackout.db")" = "db should remain" ]
 find "$backup_dir" -type f -name blackout | grep -q .
 find "$backup_dir" -type f -name old.sh | grep -q .
@@ -338,7 +345,12 @@ export BLACKOUT_API_TOKEN="main-token"
 bo_install_main
 
 grep -q 'systemctl daemon-reload' "$install_main_log"
-grep -q 'systemctl enable --now xray nginx blackout-api' "$install_main_log"
+grep -q 'systemctl enable --now xray nginx' "$install_main_log"
+grep -q 'systemctl disable --now blackout-api' "$install_main_log"
+if grep -q 'systemctl enable --now xray nginx blackout-api' "$install_main_log"; then
+  echo "installer enabled API by default" >&2
+  exit 1
+fi
 grep -q 'BLACKOUT_API_TOKEN="main-token"' "$main_env"
 grep -q 'BLACKOUT_API_ADAPTER="'"$main_install_dir/lib/api.sh"'"' "$main_env"
 unset BLACKOUT_API_TOKEN
@@ -352,4 +364,23 @@ custom_service_log="$tmp/custom-service.log"
 systemctl() { printf 'systemctl %s\n' "$*" >>"$custom_service_log"; }
 export BLACKOUT_API_SERVICE_PATH="$tmp/main/etc/systemd/system/custom-api.service"
 bo_install_main
-grep -q 'systemctl enable --now xray nginx custom-api' "$custom_service_log"
+grep -q 'systemctl disable --now custom-api' "$custom_service_log"
+
+api_control_log="$tmp/api-control.log"
+systemctl() { printf 'systemctl %s\n' "$*" >>"$api_control_log"; }
+export BLACKOUT_API_SERVICE_PATH="$tmp/main/etc/systemd/system/blackout-api.service"
+export BLACKOUT_API_SCRIPT="$main_install_dir/api/blackout_api.py"
+bo_api_service_enable
+grep -q 'systemctl daemon-reload' "$api_control_log"
+grep -q 'systemctl enable --now blackout-api' "$api_control_log"
+[ -f "$BLACKOUT_API_SERVICE_PATH" ]
+
+bo_api_service_disable
+grep -q 'systemctl disable --now blackout-api' "$api_control_log"
+
+old_token="$(bo_update_env_get "$main_env" BLACKOUT_API_TOKEN)"
+rotated_token="$(bo_api_token_rotate "$main_env" "$main_install_dir")"
+[ -n "$rotated_token" ]
+[ "$rotated_token" != "$old_token" ]
+grep -q 'systemctl restart blackout-api' "$api_control_log"
+grep -q 'BLACKOUT_API_TOKEN="'"$rotated_token"'"' "$main_env"
