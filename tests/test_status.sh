@@ -94,7 +94,9 @@ cli_output="$("$ROOT_DIR/blackout" status)"
 grep -q 'overall: usable' <<<"$cli_output"
 
 : >"$BLACKOUT_TEST_LOG"
+BLACKOUT_API_TOKEN="stale-token"
 output="$(BLACKOUT_TEST_API_ENABLED=1 bo_status_cmd)"
+unset BLACKOUT_API_TOKEN
 grep -q 'user api: ok' <<<"$output"
 grep -q 'curl -fsS' "$BLACKOUT_TEST_LOG"
 grep -q 'Authorization: Bearer status-token' "$BLACKOUT_TEST_LOG"

@@ -215,6 +215,11 @@ bo_api_token_rotate() {
   bo_api_env_set "$env_file" BLACKOUT_API_PORT 8787
   bo_api_env_set "$env_file" BLACKOUT_API_TOKEN "$token"
   bo_api_env_set "$env_file" BLACKOUT_API_ADAPTER "$install_dir/lib/api.sh"
+  BLACKOUT_API_HOST=127.0.0.1
+  BLACKOUT_API_PORT=8787
+  BLACKOUT_API_TOKEN="$token"
+  BLACKOUT_API_ADAPTER="$install_dir/lib/api.sh"
+  export BLACKOUT_API_HOST BLACKOUT_API_PORT BLACKOUT_API_TOKEN BLACKOUT_API_ADAPTER
   systemctl restart "$(bo_api_service_name)" 2>/dev/null || true
   printf '%s\n' "$token"
 }

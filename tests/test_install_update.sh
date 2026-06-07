@@ -381,8 +381,11 @@ bo_api_service_disable
 grep -q 'systemctl disable --now blackout-api' "$api_control_log"
 
 old_token="$(bo_update_env_get "$main_env" BLACKOUT_API_TOKEN)"
-rotated_token="$(bo_api_token_rotate "$main_env" "$main_install_dir")"
+rotated_token_file="$tmp/rotated-token.out"
+bo_api_token_rotate "$main_env" "$main_install_dir" >"$rotated_token_file"
+rotated_token="$(cat "$rotated_token_file")"
 [ -n "$rotated_token" ]
 [ "$rotated_token" != "$old_token" ]
+[ "$BLACKOUT_API_TOKEN" = "$rotated_token" ]
 grep -q 'systemctl restart blackout-api' "$api_control_log"
 grep -q 'BLACKOUT_API_TOKEN="'"$rotated_token"'"' "$main_env"

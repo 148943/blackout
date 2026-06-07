@@ -63,9 +63,12 @@ bo_status_user_api() {
     # shellcheck disable=SC1091
     . "${BLACKOUT_LIB_DIR:-/opt/blackout/lib}/api.sh"
   fi
-  host="${BLACKOUT_API_HOST:-$(bo_api_env_get "$env_file" BLACKOUT_API_HOST)}"
-  port="${BLACKOUT_API_PORT:-$(bo_api_env_get "$env_file" BLACKOUT_API_PORT)}"
-  token="${BLACKOUT_API_TOKEN:-$(bo_api_env_get "$env_file" BLACKOUT_API_TOKEN)}"
+  host="$(bo_api_env_get "$env_file" BLACKOUT_API_HOST)"
+  port="$(bo_api_env_get "$env_file" BLACKOUT_API_PORT)"
+  token="$(bo_api_env_get "$env_file" BLACKOUT_API_TOKEN)"
+  host="${host:-${BLACKOUT_API_HOST:-}}"
+  port="${port:-${BLACKOUT_API_PORT:-}}"
+  token="${token:-${BLACKOUT_API_TOKEN:-}}"
   host="${host:-127.0.0.1}"
   port="${port:-8787}"
   [ -n "$token" ] || {
