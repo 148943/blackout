@@ -321,6 +321,7 @@ bo_setting_set() { printf 'setting %s %s\n' "$1" "$2" >>"$install_main_log"; }
 bo_acme_install() { printf 'acme_install %s\n' "$1" >>"$install_main_log"; }
 bo_cert_issue() { printf 'cert_issue %s %s\n' "$1" "$2" >>"$install_main_log"; }
 bo_install_prepare_xray() { printf 'prepare_xray\n' >>"$install_main_log"; }
+bo_status_cmd() { printf 'status_check\n' >>"$install_main_log"; }
 systemctl() { printf 'systemctl %s\n' "$*" >>"$install_main_log"; }
 
 main_install_dir="$tmp/main/opt/blackout"
@@ -347,6 +348,7 @@ bo_install_main
 grep -q 'systemctl daemon-reload' "$install_main_log"
 grep -q 'systemctl enable --now xray nginx' "$install_main_log"
 grep -q 'systemctl disable --now blackout-api' "$install_main_log"
+grep -q 'status_check' "$install_main_log"
 if grep -q 'systemctl enable --now xray nginx blackout-api' "$install_main_log"; then
   echo "installer enabled API by default" >&2
   exit 1

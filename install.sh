@@ -19,6 +19,8 @@ BLACKOUT_ENV=/dev/null
 . "$ROOT_DIR/lib/configs.sh"
 # shellcheck disable=SC1091
 . "$ROOT_DIR/lib/api.sh"
+# shellcheck disable=SC1091
+. "$ROOT_DIR/lib/status.sh"
 
 if [ -n "$bo_install_requested_env" ]; then
   BLACKOUT_ENV="$bo_install_requested_env"
@@ -235,6 +237,7 @@ bo_install_main() {
   systemctl enable --now xray nginx
   systemctl disable --now "$api_service_name"
   bo_log "install complete"
+  bo_status_cmd
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
