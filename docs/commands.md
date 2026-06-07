@@ -15,6 +15,8 @@ blackout -h
 - `blackout` or `blackout menu`: opens the interactive control panel menu.
 - `blackout help`, `blackout --help`, `blackout -h`: prints command usage.
 
+The interactive menu includes Users, Xray, Certificates, Config, API, and Update check.
+
 ## Users
 
 ```bash

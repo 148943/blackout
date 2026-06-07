@@ -24,11 +24,14 @@ bo_cert_cmd() {
 bo_config_cmd() {
   printf 'config:%s\n' "$*" >>"$events_file"
 }
+bo_api_control_cmd() {
+  printf 'api:%s\n' "$*" >>"$events_file"
+}
 bo_update_cmd() {
   printf 'update:%s\n' "$*" >>"$events_file"
 }
 
-output="$(printf '5\n0\n' | bo_menu)"
+output="$(printf '6\n0\n' | bo_menu)"
 grep -q 'Blackout control panel' <<<"$output"
 grep -qx 'update:check' "$events_file"
 
@@ -51,3 +54,8 @@ grep -qx 'config:ws-path /stealth' "$events_file"
 output="$(printf '4\n5\n0\n0\n' | bo_menu)"
 grep -q 'Config' <<<"$output"
 grep -qx 'config:reload' "$events_file"
+
+: >"$events_file"
+output="$(printf '5\n3\n0\n0\n' | bo_menu)"
+grep -q 'API' <<<"$output"
+grep -qx 'api:status' "$events_file"
