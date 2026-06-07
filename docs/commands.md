@@ -102,3 +102,14 @@ blackout update
 
 - `update check`: read-only. Prints the installed Blackout version, remote branch commit, and status such as latest, update available, or unknown installed version. It does not modify files.
 - `update`: updates Blackout scripts and the shipped `/opt/blackout/configs/default` profile from the configured repository and branch, then records the installed commit in `/etc/blackout/blackout.env`. It does not update Xray core or custom config folders.
+
+## User API
+
+The HTTP user API is managed by systemd, not by a `blackout api` CLI command.
+
+```bash
+systemctl status blackout-api
+journalctl -u blackout-api -n 100 --no-pager
+```
+
+See [User API](api.md) for endpoints and curl examples.

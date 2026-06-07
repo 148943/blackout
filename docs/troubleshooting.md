@@ -9,6 +9,7 @@ blackout cert status
 blackout config current
 blackout user list
 systemctl status xray nginx
+systemctl status blackout-api
 ```
 
 ## Logs
@@ -16,6 +17,7 @@ systemctl status xray nginx
 ```bash
 journalctl -u xray -n 100 --no-pager
 journalctl -u nginx -n 100 --no-pager
+journalctl -u blackout-api -n 100 --no-pager
 ```
 
 ## Nginx Config
@@ -75,6 +77,31 @@ Re-render the profile after confirming the domain and certificate:
 ```bash
 blackout config switch default
 ```
+
+## User API Problems
+
+Check the service and token:
+
+```bash
+systemctl status blackout-api
+journalctl -u blackout-api -n 100 --no-pager
+. /etc/blackout/blackout.env
+printf '%s\n' "$BLACKOUT_API_TOKEN"
+```
+
+Check local loopback first:
+
+```bash
+curl -sS -H "Authorization: Bearer $BLACKOUT_API_TOKEN" http://127.0.0.1:8787/blackout-api/v1/users
+```
+
+Then check the Nginx route:
+
+```bash
+curl -sS -H "Authorization: Bearer $BLACKOUT_API_TOKEN" https://YOUR_DOMAIN/blackout-api/v1/users
+```
+
+If loopback works but HTTPS fails, run `nginx -t` and confirm the active profile was reloaded after updating Blackout.
 
 ## Blackout Updates Versus Xray Updates
 

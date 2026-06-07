@@ -11,6 +11,7 @@ More documentation:
 - [Command reference](docs/commands.md)
 - [Config profiles](docs/config-profiles.md)
 - [User management](docs/user-management.md)
+- [User API](docs/api.md)
 - [Certificates](docs/certificates.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
@@ -23,7 +24,7 @@ More documentation:
 - `git` access to `https://github.com/148943/blackout.git`.
 - For wildcard domains such as `*.new.example.com`, a Cloudflare API token with zone read and DNS edit permissions.
 
-Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, and `uuid-runtime`.
+Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, `uuid-runtime`, and `python3`.
 
 ## Fresh Debian 12 VPS Install
 
@@ -45,7 +46,7 @@ blackout user link USERNAME
 - `ACME email`: the email address used by `acme.sh`.
 - `Cloudflare API token`: shown only when the domain starts with `*.`.
 
-The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, and enables Xray and Nginx.
+The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, and enables Xray, Nginx, and the local `blackout-api` service.
 
 Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domains use Cloudflare DNS validation and automatically request both the base domain and wildcard name, for example `new.example.com` and `*.new.example.com`.
 
@@ -103,6 +104,8 @@ blackout update
 
 `blackout update` updates the Blackout scripts and the shipped default config only. It clones the configured Blackout repository, backs up the current CLI/install tree, replaces `/usr/local/bin/blackout`, `lib/`, and `/opt/blackout/configs/default`, records the installed Blackout commit in `/etc/blackout/blackout.env`, and leaves users, certificates, domain settings, custom config folders, and the installed Xray core untouched.
 
+Updates also refresh the local user API service files. Existing API tokens are preserved; older installs without a token get one during update.
+
 ## Updating Xray Core
 
 Xray core updates are managed with `blackout xray`, not `blackout update`.
@@ -138,6 +141,7 @@ Start with status and service logs:
 blackout cert status
 blackout config current
 systemctl status xray nginx
+journalctl -u blackout-api -n 100 --no-pager
 journalctl -u xray -n 100 --no-pager
 journalctl -u nginx -n 100 --no-pager
 nginx -t

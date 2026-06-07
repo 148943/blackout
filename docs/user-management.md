@@ -2,6 +2,8 @@
 
 Blackout stores users in SQLite and syncs active users to Xray through the local Xray API. Routine user add, remove, lock, unlock, link, and expiry operations do not need an Xray config rewrite.
 
+The same user operations are available through the authenticated local HTTP API. See [User API](api.md).
+
 ## Commands
 
 ```bash
