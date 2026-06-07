@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="${BLACKOUT_ROOT_DIR:-$ROOT_DIR}"
 BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
+bo_install_requested_env="${BLACKOUT_ENV:-}"
+BLACKOUT_ENV=/dev/null
 
 # shellcheck disable=SC1091
 . "$ROOT_DIR/lib/common.sh"
@@ -15,6 +17,15 @@ BLACKOUT_LIB_DIR="$ROOT_DIR/lib"
 . "$ROOT_DIR/lib/certs.sh"
 # shellcheck disable=SC1091
 . "$ROOT_DIR/lib/configs.sh"
+# shellcheck disable=SC1091
+. "$ROOT_DIR/lib/api.sh"
+
+if [ -n "$bo_install_requested_env" ]; then
+  BLACKOUT_ENV="$bo_install_requested_env"
+else
+  unset BLACKOUT_ENV
+fi
+unset bo_install_requested_env
 
 bo_install_run() {
   if [ "${BLACKOUT_DRY_RUN:-0}" = "1" ]; then
@@ -40,7 +51,7 @@ bo_install_check_debian12() {
 
 bo_install_apt_packages() {
   bo_install_run apt-get update
-  bo_install_run apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime
+  bo_install_run apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime python3
 }
 
 bo_install_copy_tree() {
@@ -48,9 +59,10 @@ bo_install_copy_tree() {
   [ -n "$install_dir" ] && [ "$install_dir" != "/" ] || bo_fail "unsafe install dir: $install_dir"
   install -Dm755 "$src/blackout" "$bin_path"
   mkdir -p "$install_dir"
-  rm -rf "$install_dir/lib" "$install_dir/configs"
+  rm -rf "$install_dir/lib" "$install_dir/configs" "$install_dir/api" "$install_dir/systemd"
   cp -a "$src/lib" "$install_dir/lib"
   cp -a "$src/configs" "$install_dir/configs"
+  cp -a "$src/api" "$install_dir/api"
 }
 
 bo_install_expire_cron() {
@@ -68,24 +80,70 @@ EOF_CRON
 
 bo_install_write_env() {
   local env_file="$1" install_dir="$2" lib_dir="$3" config_dir="$4" db_path="$5" etc_dir="${6:-/etc/blackout}" state_dir="${7:-/var/lib/blackout}" xray_config="${8:-/etc/xray/config.json}"
+  local api_token="${BLACKOUT_API_TOKEN:-}" env_tmp
+  if [ -z "$api_token" ] && [ -f "$env_file" ]; then
+    api_token="$(bo_install_read_env_value "$env_file" BLACKOUT_API_TOKEN)"
+  fi
+  if [ -z "$api_token" ]; then
+    api_token="$(bo_api_generate_token)"
+  fi
   mkdir -p "$(dirname "$env_file")"
-  cat >"$env_file" <<EOF_ENV
-BLACKOUT_REPO="${BLACKOUT_REPO:-https://github.com/148943/blackout.git}"
-BLACKOUT_BRANCH="${BLACKOUT_BRANCH:-master}"
-BLACKOUT_VERSION="${BLACKOUT_VERSION:-dev}"
-BLACKOUT_INSTALL_DIR="$install_dir"
-BLACKOUT_LIB_DIR="$lib_dir"
-BLACKOUT_CONFIG_DIR="$config_dir"
-BLACKOUT_ETC_DIR="$etc_dir"
-BLACKOUT_STATE_DIR="$state_dir"
-BLACKOUT_SSL_DIR="$etc_dir/ssl"
-BLACKOUT_DB="$db_path"
-BLACKOUT_XRAY_CONFIG="$xray_config"
+  env_tmp="$(mktemp "$(dirname "$env_file")/.blackout.env.XXXXXX")"
+  chmod 0600 "$env_tmp"
+  cat >"$env_tmp" <<EOF_ENV
+BLACKOUT_REPO="$(bo_api_env_quote "${BLACKOUT_REPO:-https://github.com/148943/blackout.git}")"
+BLACKOUT_BRANCH="$(bo_api_env_quote "${BLACKOUT_BRANCH:-master}")"
+BLACKOUT_VERSION="$(bo_api_env_quote "${BLACKOUT_VERSION:-dev}")"
+BLACKOUT_INSTALL_DIR="$(bo_api_env_quote "$install_dir")"
+BLACKOUT_LIB_DIR="$(bo_api_env_quote "$lib_dir")"
+BLACKOUT_CONFIG_DIR="$(bo_api_env_quote "$config_dir")"
+BLACKOUT_ETC_DIR="$(bo_api_env_quote "$etc_dir")"
+BLACKOUT_STATE_DIR="$(bo_api_env_quote "$state_dir")"
+BLACKOUT_SSL_DIR="$(bo_api_env_quote "$etc_dir/ssl")"
+BLACKOUT_DB="$(bo_api_env_quote "$db_path")"
+BLACKOUT_XRAY_CONFIG="$(bo_api_env_quote "$xray_config")"
+BLACKOUT_API_HOST="127.0.0.1"
+BLACKOUT_API_PORT="8787"
+BLACKOUT_API_TOKEN="$(bo_api_env_quote "$api_token")"
+BLACKOUT_API_ADAPTER="$(bo_api_env_quote "$lib_dir/api.sh")"
 EOF_ENV
   if [ -n "${BLACKOUT_CF_TOKEN:-}" ]; then
-    printf 'BLACKOUT_CF_TOKEN="%s"\n' "$(bo_cert_env_quote "$BLACKOUT_CF_TOKEN")" >>"$env_file"
+    printf 'BLACKOUT_CF_TOKEN="%s"\n' "$(bo_cert_env_quote "$BLACKOUT_CF_TOKEN")" >>"$env_tmp"
   fi
-  chmod 0600 "$env_file"
+  mv -f "$env_tmp" "$env_file"
+}
+
+bo_install_read_env_value() {
+  local env_file="$1" key="$2"
+  python3 - "$env_file" "$key" <<'PY'
+import re
+import sys
+
+path, key = sys.argv[1:]
+pattern = re.compile(rf"^{re.escape(key)}=\"(.*)\"$")
+
+try:
+    lines = open(path, encoding="utf-8").read().splitlines()
+except OSError:
+    raise SystemExit(0)
+
+for line in lines:
+    match = pattern.match(line)
+    if not match:
+        continue
+    value = match.group(1)
+    decoded = []
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char == "\\" and index + 1 < len(value) and value[index + 1] in '\\"$`':
+            index += 1
+            char = value[index]
+        decoded.append(char)
+        index += 1
+    print("".join(decoded))
+    break
+PY
 }
 
 bo_install_prompt() {
@@ -109,6 +167,13 @@ bo_install_xray_initial() {
 bo_install_prepare_xray() {
   local service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}" config_path="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
   bo_xray_install_service "$service_path" "$config_path"
+  bo_api_install_service \
+    "${BLACKOUT_API_SERVICE_PATH:-/etc/systemd/system/blackout-api.service}" \
+    "${BLACKOUT_API_SCRIPT:-${BLACKOUT_INSTALL_DIR:-/opt/blackout}/api/blackout_api.py}" \
+    "${BLACKOUT_ENV:-/etc/blackout/blackout.env}" \
+    "${BLACKOUT_STATE_DIR:-/var/lib/blackout}" \
+    "${BLACKOUT_ETC_DIR:-/etc/blackout}" \
+    "${BLACKOUT_DB:-${BLACKOUT_STATE_DIR:-/var/lib/blackout}/blackout.db}"
   BLACKOUT_XRAY_NO_RESTART=1 bo_install_xray_initial
   unset BLACKOUT_XRAY_NO_RESTART
   bo_config_switch default
@@ -127,6 +192,10 @@ bo_install_main() {
   local env_file="${BLACKOUT_ENV:-$etc_dir/blackout.env}"
   local xray_config="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
   local xray_service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}"
+  local api_service_path="${BLACKOUT_API_SERVICE_PATH:-/etc/systemd/system/blackout-api.service}"
+  local api_service_name
+  api_service_name="$(basename "$api_service_path")"
+  api_service_name="${api_service_name%.service}"
 
   bo_install_need_root
   bo_install_check_debian12
@@ -149,9 +218,11 @@ bo_install_main() {
   BLACKOUT_DB="$db_path"
   BLACKOUT_XRAY_CONFIG="$xray_config"
   BLACKOUT_XRAY_SERVICE_PATH="$xray_service_path"
+  BLACKOUT_API_SERVICE_PATH="$api_service_path"
+  BLACKOUT_API_SCRIPT="$install_dir/api/blackout_api.py"
   BLACKOUT_BIN_PATH="$bin_path"
   BLACKOUT_ENV="$env_file"
-  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH BLACKOUT_BIN_PATH BLACKOUT_ENV
+  export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH BLACKOUT_API_SERVICE_PATH BLACKOUT_API_SCRIPT BLACKOUT_BIN_PATH BLACKOUT_ENV
 
   bo_db_init
   bo_setting_set domain "$domain"
@@ -160,7 +231,8 @@ bo_install_main() {
   bo_acme_install "$email"
   bo_cert_issue "$email" "$domain"
   bo_install_prepare_xray
-  systemctl enable --now xray nginx
+  systemctl daemon-reload
+  systemctl enable --now xray nginx "$api_service_name"
   bo_log "install complete"
 }
 

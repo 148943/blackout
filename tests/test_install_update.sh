@@ -19,11 +19,12 @@ case "$1" in
     ;;
   clone)
     dest="${@: -1}"
-    mkdir -p "$dest/lib" "$dest/configs/default"
+    mkdir -p "$dest/lib" "$dest/configs/default" "$dest/api"
     printf '#!/usr/bin/env bash\n' >"$dest/blackout"
     chmod +x "$dest/blackout"
     printf 'new lib\n' >"$dest/lib/common.sh"
     printf '{}\n' >"$dest/configs/default/xray.conf"
+    printf 'new api\n' >"$dest/api/blackout_api.py"
     ;;
   *)
     exit 2
@@ -135,23 +136,56 @@ dry_log="$tmp/install-dry.log"
 export BLACKOUT_DRY_RUN_LOG="$dry_log"
 bo_install_apt_packages
 grep -q 'apt-get update' "$dry_log"
-grep -q 'apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime' "$dry_log"
+grep -q 'apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime python3' "$dry_log"
 
 repo_install="$tmp/repo-install"
 mkdir -p "$repo_install"
+mkdir -p "$repo_install/systemd"
+printf 'stale unit\n' >"$repo_install/systemd/blackout-api.service"
 bo_install_copy_tree "$ROOT_DIR" "$repo_install" "$tmp/bin/blackout"
 [ -x "$tmp/bin/blackout" ]
 [ -d "$repo_install/lib" ]
 [ -d "$repo_install/configs" ]
+[ -d "$repo_install/api" ]
+[ ! -e "$repo_install/systemd" ]
 [ ! -d "$repo_install/blackout/lib" ]
 
 env_file="$tmp/blackout.env"
-bo_install_write_env "$env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db" "$tmp/etc/blackout" "$tmp/state"
+BLACKOUT_API_TOKEN="preset-token" bo_install_write_env "$env_file" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db" "$tmp/etc/blackout" "$tmp/state"
 grep -q 'BLACKOUT_REPO="https://github.com/148943/blackout.git"' "$env_file"
 grep -q 'BLACKOUT_BRANCH="master"' "$env_file"
 grep -q 'BLACKOUT_DB="'"$tmp/state/blackout.db"'"' "$env_file"
 grep -q 'BLACKOUT_XRAY_CONFIG="/etc/xray/config.json"' "$env_file"
+grep -q 'BLACKOUT_API_HOST="127.0.0.1"' "$env_file"
+grep -q 'BLACKOUT_API_PORT="8787"' "$env_file"
+grep -q 'BLACKOUT_API_TOKEN="preset-token"' "$env_file"
+grep -q 'BLACKOUT_API_ADAPTER="'"$repo_install/lib/api.sh"'"' "$env_file"
 [ "$(stat -c %a "$env_file")" = "600" ]
+if find "$(dirname "$env_file")" -maxdepth 1 -name '.blackout.env.*' | grep -q .; then
+  echo "temporary env file left behind" >&2
+  exit 1
+fi
+
+preserved_env="$tmp/preserved.env"
+printf 'BLACKOUT_API_TOKEN="preserve-me"\n' >"$preserved_env"
+chmod 0600 "$preserved_env"
+unset BLACKOUT_API_TOKEN
+bo_install_write_env "$preserved_env" "$repo_install" "$repo_install/lib" "$repo_install/configs" "$tmp/state/blackout.db" "$tmp/etc/blackout" "$tmp/state"
+grep -q 'BLACKOUT_API_TOKEN="preserve-me"' "$preserved_env"
+
+injection_marker="$tmp/env-injection-ran"
+injection_path="$tmp/\$(touch $injection_marker)"
+injection_env="$tmp/injection.env"
+bo_install_write_env "$injection_env" "$injection_path" "$injection_path/lib" "$injection_path/configs" "$injection_path/blackout.db" "$injection_path/etc" "$injection_path/state"
+(
+  unset BLACKOUT_INSTALL_DIR BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_DB BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR
+  . "$injection_env"
+  [ "$BLACKOUT_INSTALL_DIR" = "$injection_path" ]
+  [ "$BLACKOUT_LIB_DIR" = "$injection_path/lib" ]
+  [ "$BLACKOUT_CONFIG_DIR" = "$injection_path/configs" ]
+  [ "$BLACKOUT_DB" = "$injection_path/blackout.db" ]
+)
+[ ! -e "$injection_marker" ]
 
 export BLACKOUT_CF_TOKEN=cf-secret
 cf_env_file="$tmp/blackout-cf.env"
@@ -164,7 +198,37 @@ fi
 [ "$(stat -c %a "$cf_env_file")" = "600" ]
 unset BLACKOUT_CF_TOKEN
 
+token_one="$(bo_api_generate_token)"
+token_two="$(bo_api_generate_token)"
+[ "${#token_one}" -ge 32 ]
+[ "$token_one" != "$token_two" ]
+
 cron_file="$tmp/etc/cron.d/blackout-expire"
+api_service_path="$tmp/etc/systemd/system/blackout-api.service"
+api_space_root="$tmp/path with spaces"
+api_space_script="$api_space_root/api/%n-\$token.py"
+api_space_env="$api_space_root/etc/%n-\$token.env"
+api_space_state="$api_space_root/state dir"
+api_space_etc="$api_space_root/etc \$dir"
+api_space_db="$api_space_root/custom \$db/blackout.db"
+mkdir -p "$(dirname "$api_space_script")" "$(dirname "$api_space_env")" "$api_space_state" "$api_space_etc" "$(dirname "$api_space_db")"
+bo_api_install_service "$api_service_path" "$api_space_script" "$api_space_env" "$api_space_state" "$api_space_etc" "$api_space_db"
+escaped_api_space_script="${api_space_script//%/%%}"
+escaped_api_space_script="${escaped_api_space_script//\$/\$\$}"
+grep -Fq "ExecStart=/usr/bin/python3 \"$escaped_api_space_script\"" "$api_service_path"
+escaped_api_space_env="${api_space_env// /\\x20}"
+escaped_api_space_env="${escaped_api_space_env//%/%%}"
+escaped_api_space_env="${escaped_api_space_env//\$/\\x24}"
+grep -Fq "EnvironmentFile=$escaped_api_space_env" "$api_service_path"
+grep -q 'Wants=network-online.target' "$api_service_path"
+grep -q 'After=network-online.target xray.service' "$api_service_path"
+grep -q 'Requires=xray.service' "$api_service_path"
+grep -q 'User=root' "$api_service_path"
+grep -q 'Group=root' "$api_service_path"
+grep -q 'ProtectSystem=strict' "$api_service_path"
+grep -q 'PrivateTmp=true' "$api_service_path"
+grep -q 'ReadWritePaths="'"$api_space_state"'" "'"$api_space_etc"'" "'"$(dirname "$api_space_db")"'" /tmp /dev/shm' "$api_service_path"
+grep -q 'WantedBy=multi-user.target' "$api_service_path"
 
 service_path="$tmp/etc/systemd/system/xray.service"
 config_dir="$tmp/etc/xray"
@@ -198,10 +262,67 @@ bo_config_switch() {
 export BLACKOUT_XRAY_SERVICE_PATH="$service_path"
 export BLACKOUT_XRAY_CONFIG="$tmp/etc/xray/config.json"
 export BLACKOUT_EXPIRE_CRON="$cron_file"
+export BLACKOUT_API_SERVICE_PATH="$api_service_path"
+export BLACKOUT_API_SCRIPT="$repo_install/api/blackout_api.py"
+export BLACKOUT_ENV="$env_file"
 rm -f "$service_path"
+rm -f "$api_service_path"
 rm -rf "$config_dir"
 bo_install_prepare_xray
 grep -q 'xray_initial no_restart=1 service=yes config_dir=yes' "$install_order"
 grep -q 'config_switch no_restart=0 service=yes config_dir=yes' "$install_order"
 [ -f "$cron_file" ]
+[ -f "$api_service_path" ]
 grep -q '\*/5 \* \* \* \* root '"$bin_path"' user expire >>/var/log/blackout-expire.log 2>&1' "$cron_file"
+
+install_main_log="$tmp/install-main.log"
+bo_install_check_debian12() { printf 'check_debian12\n' >>"$install_main_log"; }
+bo_install_apt_packages() { printf 'apt_packages\n' >>"$install_main_log"; }
+bo_install_prompt() {
+  printf -v "$1" '%s' 'api.example.com'
+  printf -v "$2" '%s' 'admin@example.com'
+}
+bo_db_init() { printf 'db_init\n' >>"$install_main_log"; }
+bo_setting_set() { printf 'setting %s %s\n' "$1" "$2" >>"$install_main_log"; }
+bo_acme_install() { printf 'acme_install %s\n' "$1" >>"$install_main_log"; }
+bo_cert_issue() { printf 'cert_issue %s %s\n' "$1" "$2" >>"$install_main_log"; }
+bo_install_prepare_xray() { printf 'prepare_xray\n' >>"$install_main_log"; }
+systemctl() { printf 'systemctl %s\n' "$*" >>"$install_main_log"; }
+
+main_install_dir="$tmp/main/opt/blackout"
+main_bin="$tmp/main/usr/local/bin/blackout"
+main_env="$tmp/main/etc/blackout/blackout.env"
+main_xray="$tmp/main/etc/xray/config.json"
+main_xray_service="$tmp/main/etc/systemd/system/xray.service"
+main_api_service="$tmp/main/etc/systemd/system/blackout-api.service"
+export BLACKOUT_INSTALL_DIR="$main_install_dir"
+export BLACKOUT_INSTALLED_LIB_DIR="$main_install_dir/lib"
+export BLACKOUT_INSTALLED_CONFIG_DIR="$main_install_dir/configs"
+export BLACKOUT_ETC_DIR="$tmp/main/etc/blackout"
+export BLACKOUT_STATE_DIR="$tmp/main/var/lib/blackout"
+export BLACKOUT_DB="$tmp/main/var/lib/blackout/blackout.db"
+export BLACKOUT_BIN_PATH="$main_bin"
+export BLACKOUT_ENV="$main_env"
+export BLACKOUT_XRAY_CONFIG="$main_xray"
+export BLACKOUT_XRAY_SERVICE_PATH="$main_xray_service"
+export BLACKOUT_API_SERVICE_PATH="$main_api_service"
+export BLACKOUT_API_TOKEN="main-token"
+
+bo_install_main
+
+grep -q 'systemctl daemon-reload' "$install_main_log"
+grep -q 'systemctl enable --now xray nginx blackout-api' "$install_main_log"
+grep -q 'BLACKOUT_API_TOKEN="main-token"' "$main_env"
+grep -q 'BLACKOUT_API_ADAPTER="'"$main_install_dir/lib/api.sh"'"' "$main_env"
+unset BLACKOUT_API_TOKEN
+
+unsafe_env="$tmp/unsafe-existing.env"
+unsafe_marker="$tmp/unsafe-existing-ran"
+printf 'BLACKOUT_API_TOKEN="$(touch %s)"\n' "$unsafe_marker" >"$unsafe_env"
+BLACKOUT_ENV="$unsafe_env" BLACKOUT_ROOT_DIR="$ROOT_DIR" bash -c '. "$BLACKOUT_ROOT_DIR/install.sh"; [ ! -e "$1" ]' _ "$unsafe_marker"
+
+custom_service_log="$tmp/custom-service.log"
+systemctl() { printf 'systemctl %s\n' "$*" >>"$custom_service_log"; }
+export BLACKOUT_API_SERVICE_PATH="$tmp/main/etc/systemd/system/custom-api.service"
+bo_install_main
+grep -q 'systemctl enable --now xray nginx custom-api' "$custom_service_log"

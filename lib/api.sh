@@ -18,6 +18,57 @@ BO_API_NOT_FOUND=11
 BO_API_CONFLICT=12
 BO_API_BACKEND=20
 
+bo_api_generate_token() {
+  python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
+}
+
+bo_api_env_quote() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g; s/`/\\`/g'
+}
+
+bo_api_systemd_quote() {
+  printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g; s/\$/$$/g')"
+}
+
+bo_api_systemd_path_quote() {
+  printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g')"
+}
+
+bo_api_systemd_path() {
+  printf '%s' "$1" | sed 's/\\/\\x5c/g; s/ /\\x20/g; s/	/\\x09/g; s/%/%%/g; s/\$/\\x24/g'
+}
+
+bo_api_install_service() {
+  local service_path="${1:?service path required}" api_script="${2:?api script required}" env_file="${3:?env file required}" state_dir="${4:-${BLACKOUT_STATE_DIR:-/var/lib/blackout}}" etc_dir="${5:-${BLACKOUT_ETC_DIR:-/etc/blackout}}" db_path="${6:-${BLACKOUT_DB:-$state_dir/blackout.db}}" db_dir
+  db_dir="$(dirname "$db_path")"
+  mkdir -p "$(dirname "$service_path")"
+  cat >"$service_path" <<EOF_SERVICE
+[Unit]
+Description=Blackout User API
+Wants=network-online.target
+After=network-online.target xray.service
+Requires=xray.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+EnvironmentFile=$(bo_api_systemd_path "$env_file")
+ExecStart=/usr/bin/python3 $(bo_api_systemd_quote "$api_script")
+Restart=on-failure
+RestartSec=3
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadWritePaths=$(bo_api_systemd_path_quote "$state_dir") $(bo_api_systemd_path_quote "$etc_dir") $(bo_api_systemd_path_quote "$db_dir") /tmp /dev/shm
+
+[Install]
+WantedBy=multi-user.target
+EOF_SERVICE
+  chmod 0644 "$service_path"
+}
+
 bo_api_json_string() {
   python3 -c 'import json,sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "${1:-}"
 }
