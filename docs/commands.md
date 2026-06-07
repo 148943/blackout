@@ -7,15 +7,19 @@ Run commands as root unless the command is explicitly read-only.
 ```bash
 blackout
 blackout menu
+blackout status
 blackout help
 blackout --help
 blackout -h
 ```
 
 - `blackout` or `blackout menu`: opens the interactive control panel menu.
+- `blackout status`: checks whether the Blackout stack is usable end to end.
 - `blackout help`, `blackout --help`, `blackout -h`: prints command usage.
 
-The interactive menu includes Users, Xray, Certificates, Config, API, and Update check.
+The interactive menu includes Status, Users, Xray, Certificates, Config, API, and Update check.
+
+`blackout status` checks systemd state and real usability signals: Xray service, Xray API, Nginx service, `nginx -t`, SQLite schema access, active config profile files, and the optional HTTP user API endpoint when it is enabled.
 
 ## Users
 

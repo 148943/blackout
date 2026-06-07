@@ -115,15 +115,16 @@ bo_menu() {
   local choice
   while true; do
     bo_log "Blackout control panel"
-    printf '1) Users\n2) Xray\n3) Certificates\n4) Config\n5) API\n6) Update check\n0) Exit\n'
+    printf '1) Status\n2) Users\n3) Xray\n4) Certificates\n5) Config\n6) API\n7) Update check\n0) Exit\n'
     bo_menu_read 'blackout> ' choice || return 0
     case "$choice" in
-      1) bo_menu_users ;;
-      2) bo_menu_xray ;;
-      3) bo_menu_certs ;;
-      4) bo_menu_config ;;
-      5) bo_menu_api ;;
-      6) bo_menu_load bo_update_cmd update.sh; bo_update_cmd check ;;
+      1) bo_menu_load bo_status_cmd status.sh; bo_status_cmd ;;
+      2) bo_menu_users ;;
+      3) bo_menu_xray ;;
+      4) bo_menu_certs ;;
+      5) bo_menu_config ;;
+      6) bo_menu_api ;;
+      7) bo_menu_load bo_update_cmd update.sh; bo_update_cmd check ;;
       0) return 0 ;;
       *) bo_warn "invalid menu choice: $choice" ;;
     esac

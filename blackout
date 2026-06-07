@@ -13,6 +13,7 @@ usage() {
   cat <<'USAGE'
 Blackout commands:
   blackout
+  blackout status
   blackout user add|remove|modify|lock|unlock|list|online|link|expire
   blackout xray install|update|version|current
   blackout cert issue|renew|change-domain|status
@@ -26,6 +27,7 @@ main() {
   local area="${1:-menu}"
   case "$area" in
     menu) . "$BLACKOUT_LIB_DIR/menu.sh"; bo_menu ;;
+    status) . "$BLACKOUT_LIB_DIR/status.sh"; bo_status_cmd ;;
     user) shift; . "$BLACKOUT_LIB_DIR/users.sh"; bo_user_cmd "$@" ;;
     xray) shift; . "$BLACKOUT_LIB_DIR/xray.sh"; bo_xray_cmd "$@" ;;
     cert) shift; . "$BLACKOUT_LIB_DIR/certs.sh"; bo_cert_cmd "$@" ;;

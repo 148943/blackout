@@ -72,6 +72,7 @@ The default link uses TLS on port `443`, WebSocket transport, the configured dom
 
 ```bash
 blackout
+blackout status
 blackout user add
 blackout user list
 blackout user link USERNAME
@@ -138,6 +139,7 @@ blackout cert status
 Start with status and service logs:
 
 ```bash
+blackout status
 blackout cert status
 blackout config current
 systemctl status xray nginx
