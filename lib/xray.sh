@@ -13,12 +13,23 @@ bo_xray_asset_for_arch() {
 }
 
 bo_xray_latest_version() {
-  curl -fsSLI -o /dev/null -w '%{url_effective}\n' https://github.com/XTLS/Xray-core/releases/latest | sed 's#.*/##'
+  local json tag
+  json="$(curl -fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest)" || return 1
+  tag="$(printf '%s\n' "$json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name", ""))')" || return 1
+  case "$tag" in
+    ''|latest|*/*) return 1 ;;
+    *) printf '%s\n' "$tag" ;;
+  esac
 }
 
 bo_xray_download() {
   local version="$1" dest="$2" arch asset url zip digest digest_status
-  [ "$version" = latest ] && version="$(bo_xray_latest_version)"
+  if [ "$version" = latest ]; then
+    if ! version="$(bo_xray_latest_version)"; then
+      bo_warn "failed to resolve latest Xray version"
+      return 1
+    fi
+  fi
   arch="$(uname -m)"
   asset="$(bo_xray_asset_for_arch "$arch")" || bo_fail "unsupported architecture: $arch"
   url="https://github.com/XTLS/Xray-core/releases/download/$version/$asset"

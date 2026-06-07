@@ -66,6 +66,62 @@ fi
 uname() { printf 'x86_64\n'; }
 curl() {
   local output="" arg next_is_output=0
+  if [ "$*" = "-fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest" ]; then
+    printf '{"tag_name":"v9.9.9"}\n'
+    return 0
+  fi
+  for arg in "$@"; do
+    if [ "$next_is_output" -eq 1 ]; then
+      output="$arg"
+      next_is_output=0
+      continue
+    fi
+    [ "$arg" = "-o" ] && next_is_output=1
+  done
+  [ -n "$output" ] || return 1
+  case "$output" in
+    *.dgst)
+      sha="$(sha256sum "${output%.dgst}" | awk '{print $1}')"
+      printf 'SHA2-256= %s\n' "$sha" > "$output"
+      printf '200'
+      ;;
+    *) printf 'downloaded zip\n' > "$output" ;;
+  esac
+}
+
+latest_err="$tmpdir/latest-download.err"
+out="$(bo_xray_download latest "$tmpdir/download-latest" 2>"$latest_err")"
+[ "$out" = "$tmpdir/download-latest/Xray-linux-64.zip" ]
+grep -q 'download: https://github.com/XTLS/Xray-core/releases/download/v9.9.9/Xray-linux-64.zip' "$latest_err"
+if grep -q '/releases/download/latest/' "$latest_err"; then
+  echo "latest was not resolved before download" >&2
+  exit 1
+fi
+
+curl() {
+  if [ "$*" = "-fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest" ]; then
+    printf '{"tag_name":"latest"}\n'
+    return 0
+  fi
+  echo "resolver failure should stop before asset download" >&2
+  return 1
+}
+download_status=0
+download_out="$(bo_xray_download latest "$tmpdir/download-bad-latest" 2>"$tmpdir/bad-latest.err")" || download_status=$?
+[ "$download_status" -ne 0 ]
+[ -z "$download_out" ]
+grep -q 'failed to resolve latest Xray version' "$tmpdir/bad-latest.err"
+if grep -q '/releases/download/latest/' "$tmpdir/bad-latest.err"; then
+  echo "bad latest resolver reached asset download" >&2
+  exit 1
+fi
+
+curl() {
+  local output="" arg next_is_output=0
+  if [ "$*" = "-fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest" ]; then
+    printf '{"tag_name":"v9.9.9"}\n'
+    return 0
+  fi
   for arg in "$@"; do
     if [ "$next_is_output" -eq 1 ]; then
       output="$arg"
