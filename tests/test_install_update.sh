@@ -23,6 +23,8 @@ case "$1" in
     printf '#!/usr/bin/env bash\n' >"$dest/blackout"
     chmod +x "$dest/blackout"
     printf 'new lib\n' >"$dest/lib/common.sh"
+    printf '#!/usr/bin/env bash\n' >"$dest/lib/api.sh"
+    chmod +x "$dest/lib/api.sh"
     printf '{}\n' >"$dest/configs/default/xray.conf"
     printf 'new api\n' >"$dest/api/blackout_api.py"
     ;;
@@ -83,26 +85,51 @@ printf 'old lib\n' >"$install_dir/lib/old.sh"
 mkdir -p "$install_dir/configs/default" "$install_dir/configs/custom"
 printf 'old default\n' >"$install_dir/configs/default/xray.conf"
 printf 'custom config\n' >"$install_dir/configs/custom/xray.conf"
-printf 'BLACKOUT_DOMAIN="domain should remain"\nBLACKOUT_VERSION="old"\n' >"$tmp/etc/blackout/blackout.env"
+printf 'BLACKOUT_DOMAIN="domain should remain"\nBLACKOUT_VERSION="old"\nBLACKOUT_API_TOKEN="keep-token"\n' >"$tmp/etc/blackout/blackout.env"
 printf 'db should remain\n' >"$tmp/var/lib/blackout/blackout.db"
 
 export BLACKOUT_BIN_PATH="$bin_path"
 export BLACKOUT_INSTALL_DIR="$install_dir"
 export BLACKOUT_BACKUP_DIR="$backup_dir"
 export BLACKOUT_ENV="$tmp/etc/blackout/blackout.env"
+export BLACKOUT_ETC_DIR="$tmp/etc/blackout"
+export BLACKOUT_STATE_DIR="$tmp/var/lib/blackout"
+export BLACKOUT_DB="$tmp/var/lib/blackout/blackout.db"
+export BLACKOUT_API_SERVICE_PATH="$tmp/etc/systemd/system/custom-api.service"
+systemctl() { printf 'systemctl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"; }
 
 bo_update_cmd run
 
 [ -x "$bin_path" ]
 [ -f "$install_dir/lib/common.sh" ]
+[ -f "$install_dir/lib/api.sh" ]
+[ -f "$install_dir/api/blackout_api.py" ]
 [ "$(cat "$install_dir/configs/default/xray.conf")" = "{}" ]
 [ "$(cat "$install_dir/configs/custom/xray.conf")" = "custom config" ]
 [ ! -e "$install_dir/lib/old.sh" ]
 grep -q 'BLACKOUT_DOMAIN="domain should remain"' "$BLACKOUT_ENV"
 grep -q 'BLACKOUT_VERSION="0123456789abcdef0123456789abcdef01234567"' "$BLACKOUT_ENV"
+grep -q 'BLACKOUT_API_TOKEN="keep-token"' "$BLACKOUT_ENV"
+grep -q 'BLACKOUT_API_HOST="127.0.0.1"' "$BLACKOUT_ENV"
+grep -q 'BLACKOUT_API_PORT="8787"' "$BLACKOUT_ENV"
+grep -q 'BLACKOUT_API_ADAPTER="'"$install_dir/lib/api.sh"'"' "$BLACKOUT_ENV"
+[ -f "$BLACKOUT_API_SERVICE_PATH" ]
+grep -q 'ExecStart=/usr/bin/python3 "'"$install_dir/api/blackout_api.py"'"' "$BLACKOUT_API_SERVICE_PATH"
+grep -q 'systemctl daemon-reload' "$BLACKOUT_TEST_LOG"
+grep -q 'systemctl enable custom-api' "$BLACKOUT_TEST_LOG"
+grep -q 'systemctl restart custom-api' "$BLACKOUT_TEST_LOG"
 [ "$(cat "$tmp/var/lib/blackout/blackout.db")" = "db should remain" ]
 find "$backup_dir" -type f -name blackout | grep -q .
 find "$backup_dir" -type f -name old.sh | grep -q .
+
+legacy_env="$tmp/etc/blackout/legacy.env"
+printf 'BLACKOUT_VERSION="old"\n' >"$legacy_env"
+bo_update_ensure_api_env "$legacy_env" "$install_dir"
+grep -Eq '^BLACKOUT_API_TOKEN="[^"]{32,}"$' "$legacy_env"
+grep -q 'BLACKOUT_API_HOST="127.0.0.1"' "$legacy_env"
+grep -q 'BLACKOUT_API_PORT="8787"' "$legacy_env"
+grep -q 'BLACKOUT_API_ADAPTER="'"$install_dir/lib/api.sh"'"' "$legacy_env"
+[ "$(stat -c %a "$legacy_env")" = "600" ]
 
 if ( bo_update_cmd nope ) >/dev/null 2>&1; then
   echo "unknown update command accepted" >&2
