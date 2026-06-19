@@ -8,7 +8,6 @@ Blackout renders Xray, Nginx, and share-link templates from profile directories 
 blackout config list
 blackout config current
 blackout config switch PROFILE
-blackout config ws-path /newpath
 blackout config reload
 ```
 
@@ -30,12 +29,10 @@ Common placeholders:
 - `{{XRAY_API_PORT}}`: local Xray API port.
 - `{{SSL_CERT}}`: installed TLS fullchain path.
 - `{{SSL_KEY}}`: installed TLS private key path.
-- `{{WS_NGINX_BLOCK}}`: generated Nginx WebSocket location for the configured WebSocket path.
 - `{{API_NGINX_BLOCK}}`: generated Nginx location for the optional Blackout user API.
-- `{{WS_PATH}}`: configured WebSocket path for Xray JSON and share-link templates.
 - `{{UUID}}` and `{{USERNAME}}`: user link placeholders for `share.template`.
 
-Nginx templates should use `{{WS_NGINX_BLOCK}}` instead of placing `{{WS_PATH}}` directly in the Nginx file.
+WebSocket paths are not rendered from a placeholder. Write the path manually in `xray.conf`, `nginx.conf`, and `share.template`.
 
 ## Share Templates
 
@@ -45,10 +42,10 @@ For named links, use pairs of non-empty lines:
 
 ```text
 VLESS WS TLS
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}
 
 Clash Meta
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}-clash
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}-clash
 ```
 
 `blackout user link USERNAME` prints each pair as a titled link block. It reads the active profile's `share.template` from the profile directory first, then falls back to the installed `/etc/blackout/share.template`.
@@ -71,7 +68,7 @@ The shipped profile is `default`.
 blackout config switch default
 ```
 
-The switch command requires a stored domain setting. It renders the profile with the stored domain, WebSocket path, and Xray API port; validates Xray JSON with `jq`; installs and tests the Nginx site; writes the Xray config; writes `/etc/blackout/share.template`; stores the active profile; restarts Xray; and reloads Nginx.
+The switch command requires a stored domain setting. It renders the profile with the stored domain, Xray API port, TLS certificate paths, and API Nginx block; validates Xray JSON with `jq`; installs and tests the Nginx site; writes the Xray config; writes `/etc/blackout/share.template`; stores the active profile; restarts Xray; and reloads Nginx.
 
 The implementation validates Nginx and restores the previous Nginx site if `nginx -t` fails.
 
@@ -83,13 +80,19 @@ blackout config reload
 
 ## WebSocket Path
 
+To change the WebSocket path, edit the active profile files manually:
+
+- `xray.conf`: set the VLESS WebSocket `wsSettings.path`.
+- `nginx.conf`: update the matching WebSocket `location` and socket `proxy_pass`.
+- `share.template`: update the client link path.
+
+Then run:
+
 ```bash
-blackout config ws-path /newpath
+blackout config reload
 ```
 
-The WebSocket path may be `/`, or it must start with `/` and may contain letters, numbers, `.`, `_`, `~`, `/`, and `-`. Changing it stores the new `ws_path`, reapplies the current profile, restarts Xray, reloads Nginx, and makes newly generated share links use the new path.
-
-`/blackout-api` and anything below `/blackout-api/` are reserved for the optional user API and cannot be used as the WebSocket path.
+Do not use `/blackout-api` or anything below `/blackout-api/` as the WebSocket path; that route is reserved for the optional user API.
 
 ## Nginx Placeholders
 
@@ -99,7 +102,16 @@ Custom Nginx profile templates should include these placeholders inside the TLS 
 ssl_certificate {{SSL_CERT}};
 ssl_certificate_key {{SSL_KEY}};
 
-{{WS_NGINX_BLOCK}}
+location = /vless {
+    proxy_http_version 1.1;
+    proxy_set_header Host {{DOMAIN}};
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless;
+}
 
 {{API_NGINX_BLOCK}}
 ```

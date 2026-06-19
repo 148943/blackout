@@ -229,7 +229,6 @@ bo_install_main() {
   bo_db_init
   bo_setting_set domain "$domain"
   bo_setting_set acme_email "$email"
-  bo_setting_set ws_path "/vless"
   bo_acme_install "$email"
   bo_cert_issue "$email" "$domain"
   bo_install_prepare_xray

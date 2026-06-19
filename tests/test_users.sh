@@ -179,7 +179,6 @@ bo_db_user_status aiman | grep -qx active
 
 bo_setting_set profile default
 bo_setting_set domain '*.vpn.example'
-bo_setting_set ws_path /vless
 bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
@@ -197,10 +196,10 @@ BLACKOUT_CONFIG_DIR="$BLACKOUT_ETC_DIR/configs"
 mkdir -p "$BLACKOUT_CONFIG_DIR/default"
 cat >"$BLACKOUT_CONFIG_DIR/default/share.template" <<'TPL'
 VLESS WS TLS
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}
 
 Clash Meta
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}-clash
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}-clash
 TPL
 bo_user_link aiman >"$BLACKOUT_ETC_DIR/links.out"
 grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/links.out"
@@ -216,7 +215,7 @@ if grep -q '\*\.vpn.example' "$BLACKOUT_ETC_DIR/link-rows.out"; then
 fi
 
 cat >"$BLACKOUT_CONFIG_DIR/default/share.template" <<'TPL'
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path={{WS_PATH}}&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}
 TPL
 bo_user_link_rows aiman | grep -qx $'\tvless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'
 bo_user_link aiman | grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman'

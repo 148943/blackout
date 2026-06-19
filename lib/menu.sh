@@ -75,18 +75,17 @@ bo_menu_certs() {
 }
 
 bo_menu_config() {
-  local choice profile ws_path
+  local choice profile
   bo_menu_load bo_config_cmd configs.sh
   while true; do
     bo_log "Config"
-    printf '1) Current\n2) List\n3) Switch\n4) Change WS path\n5) Reload current\n0) Back\n'
+    printf '1) Current\n2) List\n3) Switch\n4) Reload current\n0) Back\n'
     bo_menu_read 'config> ' choice || return 0
     case "$choice" in
       1) bo_config_cmd current ;;
       2) bo_config_cmd list ;;
       3) bo_menu_read 'Profile: ' profile || return 0; bo_config_cmd switch "$profile" ;;
-      4) bo_menu_read 'WS path: ' ws_path || return 0; bo_config_cmd ws-path "$ws_path" ;;
-      5) bo_config_cmd reload ;;
+      4) bo_config_cmd reload ;;
       0) return 0 ;;
       *) bo_warn "invalid menu choice: $choice" ;;
     esac

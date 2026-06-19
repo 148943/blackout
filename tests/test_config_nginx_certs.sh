@@ -13,9 +13,8 @@ cp -a "$ROOT_DIR/configs"/* "$tmp/configs/" 2>/dev/null || true
 grep -q '{{SSL_CERT}}' "$tmp/configs/default/nginx.conf"
 grep -q '{{SSL_KEY}}' "$tmp/configs/default/nginx.conf"
 grep -q '{{API_NGINX_BLOCK}}' "$tmp/configs/default/nginx.conf"
-grep -q '{{WS_NGINX_BLOCK}}' "$tmp/configs/default/nginx.conf"
-if grep -q '{{WS_PATH}}' "$tmp/configs/default/nginx.conf"; then
-  echo "default nginx template should not use WS_PATH directly" >&2
+if grep -R '{{WS_PATH}}\|{{WS_NGINX_BLOCK}}' "$tmp/configs/default" >/dev/null; then
+  echo "default profile should not use ws path placeholders" >&2
   exit 1
 fi
 
@@ -120,7 +119,6 @@ export BLACKOUT_NGINX_ENABLED_DIR="$tmp/etc/nginx/sites-enabled"
 
 bo_db_init
 bo_setting_set domain example.com
-bo_setting_set ws_path /blackout
 bo_setting_set xray_api_port 60001
 bo_db_user_insert replayed 00000000-0000-0000-0000-000000000021 replayed@example 2 active 100 4102444800
 bo_db_user_insert locked 00000000-0000-0000-0000-000000000022 locked@example 0 locked 100 4102444800
@@ -153,13 +151,13 @@ PY
 )"
 [ "$rendered_inbound" = "$(bo_user_active_inbound)" ]
 grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
-grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/blackout' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'location /blackout-api/' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://127.0.0.1:8787' "$tmp/etc/nginx/sites-available/blackout"
 grep -q "ssl_certificate $tmp/etc/ssl/fullchain.pem;" "$tmp/etc/nginx/sites-available/blackout"
 grep -q "ssl_certificate_key $tmp/etc/ssl/privkey.pem;" "$tmp/etc/nginx/sites-available/blackout"
-if grep -Eq '\{\{(SSL_CERT|SSL_KEY|WS_NGINX_BLOCK|API_NGINX_BLOCK|WS_PATH)\}\}' "$tmp/etc/nginx/sites-available/blackout"; then
+if grep -Eq '\{\{(SSL_CERT|SSL_KEY|WS_NGINX_BLOCK|API_NGINX_BLOCK|WS_PATH)\}\}' "$tmp/etc/nginx/sites-available/blackout" "$BLACKOUT_XRAY_CONFIG" "$tmp/etc/share.template"; then
   echo "nginx placeholders leaked into rendered config" >&2
   exit 1
 fi
@@ -171,41 +169,17 @@ if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired 
 fi
 grep -q 'systemctl reload nginx' "$BLACKOUT_TEST_LOG"
 
-bo_config_cmd ws-path /stealth
-[ "$(bo_setting_get ws_path)" = "/stealth" ]
-grep -q 'location = /stealth' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/stealth' "$tmp/etc/nginx/sites-available/blackout"
-grep -q '"path": "/stealth"' "$BLACKOUT_XRAY_CONFIG"
-
-bo_config_cmd ws-path /
-[ "$(bo_setting_get ws_path)" = "/" ]
-grep -q 'location = /' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/' "$tmp/etc/nginx/sites-available/blackout"
-grep -q '"path": "/"' "$BLACKOUT_XRAY_CONFIG"
-bo_config_cmd ws-path /stealth
-
-if ( bo_config_cmd ws-path '/bad path' ) >/dev/null 2>&1; then
-  echo "unsafe config ws-path accepted" >&2
+if ( bo_config_cmd ws-path /stealth ) >/dev/null 2>&1; then
+  echo "ws-path command accepted even though paths are profile-managed" >&2
   exit 1
 fi
-[ "$(bo_setting_get ws_path)" = "/stealth" ]
-if ( bo_config_cmd ws-path /blackout-api ) >/dev/null 2>&1; then
-  echo "reserved api ws-path accepted" >&2
-  exit 1
-fi
-if ( bo_config_cmd ws-path /blackout-api/v1/users ) >/dev/null 2>&1; then
-  echo "nested reserved api ws-path accepted" >&2
-  exit 1
-fi
-[ "$(bo_setting_get ws_path)" = "/stealth" ]
-bo_config_cmd ws-path /blackout
+grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/vless"' "$BLACKOUT_XRAY_CONFIG"
 
-bo_setting_set ws_path /reload
 bo_config_cmd reload
 [ "$(bo_setting_get profile)" = "default" ]
-grep -q 'location = /reload' "$tmp/etc/nginx/sites-available/blackout"
-grep -q '"path": "/reload"' "$BLACKOUT_XRAY_CONFIG"
-bo_config_cmd ws-path /blackout
+grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/vless"' "$BLACKOUT_XRAY_CONFIG"
 
 sqlite3 "$BLACKOUT_DB" "DELETE FROM settings WHERE key = 'xray_api_port';"
 export BLACKOUT_XRAY_API_PORT=61001
@@ -258,13 +232,6 @@ if grep -q '\*\.wild.example.com' "$tmp/etc/nginx/sites-available/blackout" "$BL
   exit 1
 fi
 bo_setting_set domain example.com
-
-bo_setting_set ws_path '/bad path'
-if ( bo_config_switch default ) >/dev/null 2>&1; then
-  echo "unsafe ws_path accepted" >&2
-  exit 1
-fi
-bo_setting_set ws_path /blackout
 
 bo_cert_cmd change-domain new.example.com
 [ "$(bo_setting_get domain)" = "new.example.com" ]
@@ -320,7 +287,7 @@ bo_cert_cmd change-domain '*.change.example.com'
 grep -q 'acme.sh --issue --dns dns_cf -d change.example.com -d \*.change.example.com' "$BLACKOUT_TEST_LOG"
 grep -q 'curl .*zones?name=change.example.com' "$BLACKOUT_TEST_LOG"
 grep -q 'curl .*zones?name=example.com' "$BLACKOUT_TEST_LOG"
-grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
 unset BLACKOUT_CF_TOKEN
 bo_setting_set domain new.example.com
 

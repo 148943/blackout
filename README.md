@@ -66,7 +66,7 @@ Print the client link:
 blackout user link USERNAME
 ```
 
-The default link uses TLS on port `443`, WebSocket transport, the configured domain, and the configured WebSocket path.
+The default link uses TLS on port `443`, WebSocket transport, the configured domain, and the default profile path `/vless`.
 
 ## Common Commands
 

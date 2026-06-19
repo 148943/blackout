@@ -356,7 +356,7 @@ bo_user_link_pairs() {
 }
 
 bo_user_link_rows() {
-  local username="$1" row uuid email level status created_at expires_at updated_at domain share_domain ws_path template now rendered
+  local username="$1" row uuid email level status created_at expires_at updated_at domain share_domain template now rendered
   bo_user_validate_username "$username" || return 1
   row="$(bo_db_user_get "$username")" || return 1
   if [ -z "$row" ]; then
@@ -380,9 +380,8 @@ bo_user_link_rows() {
     return 1
   fi
   share_domain="$(bo_user_share_domain "$domain")" || return 1
-  ws_path="$(bo_user_setting ws_path /vless)" || return 1
   template="$(bo_user_share_template)" || return 1
-  rendered="$(bo_render_template "$template" UUID "$uuid" DOMAIN "$share_domain" WS_PATH "$ws_path" USERNAME "$username")" || return 1
+  rendered="$(bo_render_template "$template" UUID "$uuid" DOMAIN "$share_domain" USERNAME "$username")" || return 1
   bo_user_link_pairs "$rendered"
 }
 

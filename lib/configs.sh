@@ -45,14 +45,10 @@ bo_config_profile_dir() {
 }
 
 bo_config_validate_inputs() {
-  local domain="$1" ws_path="$2" xray_api_port="$3"
+  local domain="$1" xray_api_port="$2"
   [ -n "$domain" ] || bo_fail "domain setting required"
   [ "${#domain}" -le 253 ] || bo_fail "domain is too long"
   [[ "$domain" =~ ^(\*\.)?[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]] || bo_fail "domain contains unsafe characters"
-  [[ "$ws_path" =~ ^/$|^/[A-Za-z0-9._~/-]+$ ]] || bo_fail "ws_path contains unsafe characters"
-  case "$ws_path" in
-    /blackout-api|/blackout-api/*) bo_fail "ws_path conflicts with API route" ;;
-  esac
   case "$xray_api_port" in
     ''|*[!0-9]*) bo_fail "xray_api_port must be numeric" ;;
   esac
@@ -65,22 +61,6 @@ bo_config_template_domain() {
   else
     printf '%s\n' "$domain"
   fi
-}
-
-bo_config_ws_nginx_block() {
-  local domain="$1" ws_path="$2"
-  cat <<EOF
-    location = $ws_path {
-        proxy_http_version 1.1;
-        proxy_set_header Host $domain;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_pass http://unix:/dev/shm/blackout-vless.sock:$ws_path;
-    }
-EOF
 }
 
 bo_config_api_nginx_block() {
@@ -97,7 +77,7 @@ EOF
 }
 
 bo_config_switch() {
-  local profile="${1:?profile required}" profile_dir domain template_domain ws_path xray_api_port stage nginx_snapshot ssl_cert ssl_key ws_nginx_block api_nginx_block
+  local profile="${1:?profile required}" profile_dir domain template_domain xray_api_port stage nginx_snapshot ssl_cert ssl_key api_nginx_block
   profile_dir="$(bo_config_profile_dir "$profile")"
   [ -d "$profile_dir" ] || bo_fail "unknown profile: $profile"
   [ -f "$profile_dir/xray.conf" ] || bo_fail "missing xray template: $profile"
@@ -106,22 +86,20 @@ bo_config_switch() {
 
   bo_need_cmd jq
   domain="$(bo_config_setting domain "${DOMAIN:-}")"
-  ws_path="$(bo_config_setting ws_path /vless)"
   xray_api_port="$(bo_xray_api_port)" || return 1
-  bo_config_validate_inputs "$domain" "$ws_path" "$xray_api_port"
+  bo_config_validate_inputs "$domain" "$xray_api_port"
   template_domain="$(bo_config_template_domain "$domain")"
   ssl_cert="${BLACKOUT_SSL_FULLCHAIN:-${BLACKOUT_SSL_DIR:-${BLACKOUT_ETC_DIR:-/etc/blackout}/ssl}/fullchain.pem}"
   ssl_key="${BLACKOUT_SSL_PRIVKEY:-${BLACKOUT_SSL_DIR:-${BLACKOUT_ETC_DIR:-/etc/blackout}/ssl}/privkey.pem}"
-  ws_nginx_block="$(bo_config_ws_nginx_block "$template_domain" "$ws_path")"
   api_nginx_block="$(bo_config_api_nginx_block)"
 
   stage="$(mktemp -d)"
 
   bo_render_template "$profile_dir/xray.conf" \
-    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" SSL_CERT "$ssl_cert" SSL_KEY "$ssl_key" WS_NGINX_BLOCK "$ws_nginx_block" API_NGINX_BLOCK "$api_nginx_block" \
+    DOMAIN "$template_domain" XRAY_API_PORT "$xray_api_port" SSL_CERT "$ssl_cert" SSL_KEY "$ssl_key" API_NGINX_BLOCK "$api_nginx_block" \
     >"$stage/xray.conf"
   bo_render_template "$profile_dir/nginx.conf" \
-    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" SSL_CERT "$ssl_cert" SSL_KEY "$ssl_key" WS_NGINX_BLOCK "$ws_nginx_block" API_NGINX_BLOCK "$api_nginx_block" \
+    DOMAIN "$template_domain" XRAY_API_PORT "$xray_api_port" SSL_CERT "$ssl_cert" SSL_KEY "$ssl_key" API_NGINX_BLOCK "$api_nginx_block" \
     >"$stage/nginx.conf"
   cp "$profile_dir/share.template" "$stage/share.template"
 
@@ -143,7 +121,6 @@ bo_config_switch() {
   install -m 0644 "$stage/xray.conf" "$BLACKOUT_XRAY_CONFIG"
   install -m 0644 "$stage/share.template" "$BLACKOUT_ETC_DIR/share.template"
   bo_setting_set profile "$profile"
-  bo_setting_set ws_path "$ws_path"
   bo_setting_set xray_api_port "$xray_api_port"
 
   systemctl restart xray
@@ -160,11 +137,7 @@ bo_config_switch() {
 }
 
 bo_config_ws_path() {
-  local ws_path="${1:?ws_path required}" profile
-  profile="$(bo_config_current)"
-  bo_config_validate_inputs "$(bo_config_setting domain "${DOMAIN:-}")" "$ws_path" "$(bo_xray_api_port)"
-  bo_setting_set ws_path "$ws_path"
-  bo_config_switch "$profile"
+  bo_fail "ws_path is profile-managed; edit the active config profile and run blackout config reload"
 }
 
 bo_config_reload() {

@@ -53,12 +53,7 @@ grep -q 'Xray' <<<"$output"
 grep -qx 'xray:current' "$events_file"
 
 : >"$events_file"
-output="$(printf '5\n4\n/stealth\n0\n0\n' | bo_menu)"
-grep -q 'Config' <<<"$output"
-grep -qx 'config:ws-path /stealth' "$events_file"
-
-: >"$events_file"
-output="$(printf '5\n5\n0\n0\n' | bo_menu)"
+output="$(printf '5\n4\n0\n0\n' | bo_menu)"
 grep -q 'Config' <<<"$output"
 grep -qx 'config:reload' "$events_file"
 

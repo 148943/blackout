@@ -17,7 +17,7 @@ Blackout commands:
   blackout user add|remove|modify|lock|unlock|list|online|link|expire
   blackout xray install|update|version|current
   blackout cert issue|renew|change-domain|status
-  blackout config list|switch|current
+  blackout config list|switch|current|reload
   blackout api enable|disable|status|token
   blackout update [check]
 USAGE
