@@ -67,8 +67,37 @@ bo_config_template_domain() {
   fi
 }
 
+bo_config_ws_nginx_block() {
+  local domain="$1" ws_path="$2"
+  cat <<EOF
+    location = $ws_path {
+        proxy_http_version 1.1;
+        proxy_set_header Host $domain;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_pass http://unix:/dev/shm/blackout-vless.sock:$ws_path;
+    }
+EOF
+}
+
+bo_config_api_nginx_block() {
+  cat <<'EOF'
+    location /blackout-api/ {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_pass http://127.0.0.1:8787;
+    }
+EOF
+}
+
 bo_config_switch() {
-  local profile="${1:?profile required}" profile_dir domain template_domain ws_path xray_api_port stage nginx_snapshot
+  local profile="${1:?profile required}" profile_dir domain template_domain ws_path xray_api_port stage nginx_snapshot ssl_cert ssl_key ws_nginx_block api_nginx_block
   profile_dir="$(bo_config_profile_dir "$profile")"
   [ -d "$profile_dir" ] || bo_fail "unknown profile: $profile"
   [ -f "$profile_dir/xray.conf" ] || bo_fail "missing xray template: $profile"
@@ -81,14 +110,18 @@ bo_config_switch() {
   xray_api_port="$(bo_xray_api_port)" || return 1
   bo_config_validate_inputs "$domain" "$ws_path" "$xray_api_port"
   template_domain="$(bo_config_template_domain "$domain")"
+  ssl_cert="${BLACKOUT_SSL_FULLCHAIN:-${BLACKOUT_SSL_DIR:-${BLACKOUT_ETC_DIR:-/etc/blackout}/ssl}/fullchain.pem}"
+  ssl_key="${BLACKOUT_SSL_PRIVKEY:-${BLACKOUT_SSL_DIR:-${BLACKOUT_ETC_DIR:-/etc/blackout}/ssl}/privkey.pem}"
+  ws_nginx_block="$(bo_config_ws_nginx_block "$template_domain" "$ws_path")"
+  api_nginx_block="$(bo_config_api_nginx_block)"
 
   stage="$(mktemp -d)"
 
   bo_render_template "$profile_dir/xray.conf" \
-    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" \
+    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" SSL_CERT "$ssl_cert" SSL_KEY "$ssl_key" WS_NGINX_BLOCK "$ws_nginx_block" API_NGINX_BLOCK "$api_nginx_block" \
     >"$stage/xray.conf"
   bo_render_template "$profile_dir/nginx.conf" \
-    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" \
+    DOMAIN "$template_domain" WS_PATH "$ws_path" XRAY_API_PORT "$xray_api_port" SSL_CERT "$ssl_cert" SSL_KEY "$ssl_key" WS_NGINX_BLOCK "$ws_nginx_block" API_NGINX_BLOCK "$api_nginx_block" \
     >"$stage/nginx.conf"
   cp "$profile_dir/share.template" "$stage/share.template"
 

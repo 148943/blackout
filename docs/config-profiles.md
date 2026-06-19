@@ -22,7 +22,20 @@ nginx.conf
 share.template
 ```
 
-Templates use Blackout placeholders such as `{{DOMAIN}}`, `{{WS_PATH}}`, `{{XRAY_API_PORT}}`, `{{UUID}}`, and `{{USERNAME}}`. If the stored domain is wildcard, `{{DOMAIN}}` renders as the base domain, for example `*.new.example.com` becomes `new.example.com`.
+Templates use Blackout placeholders. If the stored domain is wildcard, `{{DOMAIN}}` renders as the base domain, for example `*.new.example.com` becomes `new.example.com`.
+
+Common placeholders:
+
+- `{{DOMAIN}}`: configured domain, with wildcard prefix removed.
+- `{{XRAY_API_PORT}}`: local Xray API port.
+- `{{SSL_CERT}}`: installed TLS fullchain path.
+- `{{SSL_KEY}}`: installed TLS private key path.
+- `{{WS_NGINX_BLOCK}}`: generated Nginx WebSocket location for the configured WebSocket path.
+- `{{API_NGINX_BLOCK}}`: generated Nginx location for the optional Blackout user API.
+- `{{WS_PATH}}`: configured WebSocket path for Xray JSON and share-link templates.
+- `{{UUID}}` and `{{USERNAME}}`: user link placeholders for `share.template`.
+
+Nginx templates should use `{{WS_NGINX_BLOCK}}` instead of placing `{{WS_PATH}}` directly in the Nginx file.
 
 ## Share Templates
 
@@ -78,19 +91,17 @@ The WebSocket path may be `/`, or it must start with `/` and may contain letters
 
 `/blackout-api` and anything below `/blackout-api/` are reserved for the optional user API and cannot be used as the WebSocket path.
 
-## User API Nginx Block
+## Nginx Placeholders
 
-Custom Nginx profile templates should include this block inside the TLS `server` block if you want the optional user API to be reachable through the domain:
+Custom Nginx profile templates should include these placeholders inside the TLS `server` block:
 
 ```nginx
-location /blackout-api/ {
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_pass http://127.0.0.1:8787;
-}
+ssl_certificate {{SSL_CERT}};
+ssl_certificate_key {{SSL_KEY}};
+
+{{WS_NGINX_BLOCK}}
+
+{{API_NGINX_BLOCK}}
 ```
 
-Do not add a trailing slash to `proxy_pass`; the API server expects to receive the `/blackout-api/v1/...` path unchanged.
+`{{API_NGINX_BLOCK}}` renders a `/blackout-api/` proxy to `127.0.0.1:8787` without a trailing slash on `proxy_pass`; the API server expects to receive the `/blackout-api/v1/...` path unchanged.

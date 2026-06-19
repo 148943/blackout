@@ -10,6 +10,15 @@ bin="$tmp/bin"
 mkdir -p "$bin" "$tmp/etc" "$tmp/state" "$tmp/configs" "$tmp/home/.acme.sh"
 cp -a "$ROOT_DIR/configs"/* "$tmp/configs/" 2>/dev/null || true
 
+grep -q '{{SSL_CERT}}' "$tmp/configs/default/nginx.conf"
+grep -q '{{SSL_KEY}}' "$tmp/configs/default/nginx.conf"
+grep -q '{{API_NGINX_BLOCK}}' "$tmp/configs/default/nginx.conf"
+grep -q '{{WS_NGINX_BLOCK}}' "$tmp/configs/default/nginx.conf"
+if grep -q '{{WS_PATH}}' "$tmp/configs/default/nginx.conf"; then
+  echo "default nginx template should not use WS_PATH directly" >&2
+  exit 1
+fi
+
 cat >"$bin/systemctl" <<'SH'
 #!/usr/bin/env bash
 printf 'systemctl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
@@ -148,6 +157,12 @@ grep -q 'location = /blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/blackout' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'location /blackout-api/' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://127.0.0.1:8787' "$tmp/etc/nginx/sites-available/blackout"
+grep -q "ssl_certificate $tmp/etc/ssl/fullchain.pem;" "$tmp/etc/nginx/sites-available/blackout"
+grep -q "ssl_certificate_key $tmp/etc/ssl/privkey.pem;" "$tmp/etc/nginx/sites-available/blackout"
+if grep -Eq '\{\{(SSL_CERT|SSL_KEY|WS_NGINX_BLOCK|API_NGINX_BLOCK|WS_PATH)\}\}' "$tmp/etc/nginx/sites-available/blackout"; then
+  echo "nginx placeholders leaked into rendered config" >&2
+  exit 1
+fi
 grep -q 'systemctl restart xray' "$BLACKOUT_TEST_LOG"
 grep -q 'replayed replayed 00000000-0000-0000-0000-000000000021 2' "$BLACKOUT_TEST_LOG"
 if grep -q 'replayed locked ' "$BLACKOUT_TEST_LOG" || grep -q 'replayed expired ' "$BLACKOUT_TEST_LOG"; then
