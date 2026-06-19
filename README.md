@@ -91,7 +91,7 @@ See [docs/commands.md](docs/commands.md) for the full command reference.
 
 ## Updating Blackout
 
-Blackout script updates are separate from Xray core updates.
+Blackout script updates re-run the installer from the new source tree so installed files and services stay aligned with the current release.
 
 ```bash
 blackout update check
@@ -103,9 +103,9 @@ blackout update check
 blackout update
 ```
 
-`blackout update` updates the Blackout scripts and the shipped default config only. It clones the configured Blackout repository, backs up the current CLI/install tree, replaces `/usr/local/bin/blackout`, `lib/`, and `/opt/blackout/configs/default`, records the installed Blackout commit in `/etc/blackout/blackout.env`, and leaves users, certificates, domain settings, custom config folders, and the installed Xray core untouched.
+`blackout update` clones the configured Blackout repository, backs up the current CLI/install tree, then runs the new `install.sh` in reinstall mode. It reuses saved domain, ACME email, Cloudflare token, install paths, database path, and API token when available, and only prompts for missing values.
 
-Updates also refresh the local user API service files. Existing API tokens are preserved; older installs without a token get one during update.
+Updates refresh services, expiry cron, the local user API service files, and the shipped `/opt/blackout/configs/default` profile. Users, certificates, database contents, custom config folders, existing API tokens, and an already installed Xray core binary are preserved.
 
 ## Updating Xray Core
 

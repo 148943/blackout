@@ -61,9 +61,16 @@ bo_install_copy_tree() {
   [ -n "$install_dir" ] && [ "$install_dir" != "/" ] || bo_fail "unsafe install dir: $install_dir"
   install -Dm755 "$src/blackout" "$bin_path"
   mkdir -p "$install_dir"
-  rm -rf "$install_dir/lib" "$install_dir/configs" "$install_dir/api" "$install_dir/systemd"
+  rm -rf "$install_dir/lib" "$install_dir/api" "$install_dir/systemd"
   cp -a "$src/lib" "$install_dir/lib"
-  cp -a "$src/configs" "$install_dir/configs"
+  if [ "${BLACKOUT_REINSTALL:-0}" = "1" ]; then
+    mkdir -p "$install_dir/configs"
+    rm -rf "$install_dir/configs/default"
+    cp -a "$src/configs/default" "$install_dir/configs/default"
+  else
+    rm -rf "$install_dir/configs"
+    cp -a "$src/configs" "$install_dir/configs"
+  fi
   cp -a "$src/api" "$install_dir/api"
 }
 
@@ -162,7 +169,21 @@ bo_install_prompt_cloudflare() {
   printf -v "$__token_var" '%s' "$__token_value"
 }
 
+bo_install_prompt_value() {
+  local __value_var="$1" __label="$2" __default="${3:-}" __value
+  if [ -n "$__default" ]; then
+    printf -v "$__value_var" '%s' "$__default"
+    return 0
+  fi
+  read -r -p "$__label: " __value
+  printf -v "$__value_var" '%s' "$__value"
+}
+
 bo_install_xray_initial() {
+  if [ "${BLACKOUT_REINSTALL:-0}" = "1" ] && command -v xray >/dev/null 2>&1; then
+    bo_log "xray core already installed; keeping current binary"
+    return 0
+  fi
   bo_xray_install_version latest
 }
 
@@ -195,19 +216,29 @@ bo_install_main() {
   local xray_config="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
   local xray_service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}"
   local api_service_path="${BLACKOUT_API_SERVICE_PATH:-/etc/systemd/system/blackout-api.service}"
-  local api_service_name
+  local api_service_name api_was_enabled=0
   api_service_name="$(basename "$api_service_path")"
   api_service_name="${api_service_name%.service}"
 
   bo_install_need_root
   bo_install_check_debian12
   bo_install_apt_packages
+  if [ "${BLACKOUT_REINSTALL:-0}" = "1" ] && systemctl is-enabled -q "$api_service_name" 2>/dev/null; then
+    api_was_enabled=1
+  fi
 
   mkdir -p "$install_dir" "$etc_dir/ssl" "$state_dir" "$(dirname "$xray_config")"
   bo_install_copy_tree "$ROOT_DIR" "$install_dir" "$bin_path"
-  bo_install_prompt domain email
+  bo_db_init
+  domain="${BLACKOUT_DOMAIN:-$(bo_setting_get domain 2>/dev/null || true)}"
+  email="${BLACKOUT_ACME_EMAIL:-$(bo_setting_get acme_email 2>/dev/null || true)}"
+  bo_install_prompt_value domain "Domain" "$domain"
+  bo_install_prompt_value email "ACME email" "$email"
   if [[ "$domain" == \*.* ]]; then
-    bo_install_prompt_cloudflare cf_token
+    cf_token="${BLACKOUT_CF_TOKEN:-$(bo_install_read_env_value "$env_file" BLACKOUT_CF_TOKEN)}"
+    if [ -z "$cf_token" ]; then
+      bo_install_prompt_cloudflare cf_token
+    fi
     BLACKOUT_CF_TOKEN="$cf_token"
     export BLACKOUT_CF_TOKEN
   fi
@@ -226,7 +257,6 @@ bo_install_main() {
   BLACKOUT_ENV="$env_file"
   export BLACKOUT_LIB_DIR BLACKOUT_CONFIG_DIR BLACKOUT_ETC_DIR BLACKOUT_STATE_DIR BLACKOUT_DB BLACKOUT_XRAY_CONFIG BLACKOUT_XRAY_SERVICE_PATH BLACKOUT_API_SERVICE_PATH BLACKOUT_API_SCRIPT BLACKOUT_BIN_PATH BLACKOUT_ENV
 
-  bo_db_init
   bo_setting_set domain "$domain"
   bo_setting_set acme_email "$email"
   bo_acme_install "$email"
@@ -234,7 +264,11 @@ bo_install_main() {
   bo_install_prepare_xray
   systemctl daemon-reload
   systemctl enable --now xray nginx
-  systemctl disable --now "$api_service_name"
+  if [ "${BLACKOUT_REINSTALL:-0}" = "1" ] && [ "$api_was_enabled" = "1" ]; then
+    systemctl enable --now "$api_service_name"
+  else
+    systemctl disable --now "$api_service_name"
+  fi
   bo_log "install complete"
   bo_status_cmd
 }

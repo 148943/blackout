@@ -22,6 +22,64 @@ case "$1" in
     mkdir -p "$dest/lib" "$dest/configs/default" "$dest/api"
     printf '#!/usr/bin/env bash\n' >"$dest/blackout"
     chmod +x "$dest/blackout"
+    cat >"$dest/install.sh" <<'INSTALL_SH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'install.sh env=%s install_dir=%s db=%s version=%s reinstall=%s repo=%s branch=%s xray_config=%s xray_service=%s\n' \
+  "${BLACKOUT_ENV:-}" \
+  "${BLACKOUT_INSTALL_DIR:-}" \
+  "${BLACKOUT_DB:-}" \
+  "${BLACKOUT_VERSION:-}" \
+  "${BLACKOUT_REINSTALL:-}" \
+  "${BLACKOUT_REPO:-}" \
+  "${BLACKOUT_BRANCH:-}" \
+  "${BLACKOUT_XRAY_CONFIG:-}" \
+  "${BLACKOUT_XRAY_SERVICE_PATH:-}" >>"$BLACKOUT_TEST_LOG"
+rm -rf "$BLACKOUT_INSTALL_DIR/lib" "$BLACKOUT_INSTALL_DIR/api" "$BLACKOUT_INSTALL_DIR/configs/default"
+mkdir -p "$BLACKOUT_INSTALL_DIR/configs/default" "$BLACKOUT_INSTALL_DIR/lib" "$BLACKOUT_INSTALL_DIR/api" "$(dirname "$BLACKOUT_BIN_PATH")"
+mkdir -p "$(dirname "$BLACKOUT_API_SERVICE_PATH")"
+printf '#!/usr/bin/env bash\n' >"$BLACKOUT_BIN_PATH"
+chmod +x "$BLACKOUT_BIN_PATH"
+printf 'new lib\n' >"$BLACKOUT_INSTALL_DIR/lib/common.sh"
+printf '#!/usr/bin/env bash\n' >"$BLACKOUT_INSTALL_DIR/lib/api.sh"
+chmod +x "$BLACKOUT_INSTALL_DIR/lib/api.sh"
+printf '{}\n' >"$BLACKOUT_INSTALL_DIR/configs/default/xray.conf"
+printf 'new api\n' >"$BLACKOUT_INSTALL_DIR/api/blackout_api.py"
+printf 'systemctl daemon-reload\n' >>"$BLACKOUT_TEST_LOG"
+python3 - "$BLACKOUT_ENV" "$BLACKOUT_VERSION" "$BLACKOUT_INSTALL_DIR" <<'PY'
+import os
+import re
+import sys
+
+path, version, install_dir = sys.argv[1:]
+try:
+    lines = open(path, encoding="utf-8").read().splitlines()
+except FileNotFoundError:
+    lines = []
+
+values = {
+    "BLACKOUT_VERSION": version,
+    "BLACKOUT_API_HOST": "127.0.0.1",
+    "BLACKOUT_API_PORT": "8787",
+    "BLACKOUT_API_ADAPTER": f"{install_dir}/lib/api.sh",
+}
+for key, value in values.items():
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    replacement = f'{key}="{escaped}"'
+    pattern = re.compile(rf"^{re.escape(key)}=")
+    for index, line in enumerate(lines):
+        if pattern.match(line):
+            lines[index] = replacement
+            break
+    else:
+        lines.append(replacement)
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path, "w", encoding="utf-8") as env_file:
+    env_file.write("\n".join(lines) + "\n")
+PY
+printf 'ExecStart=/usr/bin/python3 "%s/api/blackout_api.py"\n' "$BLACKOUT_INSTALL_DIR" >"$BLACKOUT_API_SERVICE_PATH"
+INSTALL_SH
+    chmod +x "$dest/install.sh"
     printf 'new lib\n' >"$dest/lib/common.sh"
     printf '#!/usr/bin/env bash\n' >"$dest/lib/api.sh"
     chmod +x "$dest/lib/api.sh"
@@ -96,6 +154,8 @@ export BLACKOUT_ETC_DIR="$tmp/etc/blackout"
 export BLACKOUT_STATE_DIR="$tmp/var/lib/blackout"
 export BLACKOUT_DB="$tmp/var/lib/blackout/blackout.db"
 export BLACKOUT_API_SERVICE_PATH="$tmp/etc/systemd/system/custom-api.service"
+export BLACKOUT_XRAY_CONFIG="$tmp/etc/xray/custom.json"
+export BLACKOUT_XRAY_SERVICE_PATH="$tmp/etc/systemd/system/custom-xray.service"
 systemctl() {
   printf 'systemctl %s\n' "$*" >>"$BLACKOUT_TEST_LOG"
   if [ "${1:-}" = "is-enabled" ]; then
@@ -118,6 +178,7 @@ grep -q 'BLACKOUT_API_TOKEN="keep-token"' "$BLACKOUT_ENV"
 grep -q 'BLACKOUT_API_HOST="127.0.0.1"' "$BLACKOUT_ENV"
 grep -q 'BLACKOUT_API_PORT="8787"' "$BLACKOUT_ENV"
 grep -q 'BLACKOUT_API_ADAPTER="'"$install_dir/lib/api.sh"'"' "$BLACKOUT_ENV"
+grep -q 'install.sh env='"$BLACKOUT_ENV"' install_dir='"$install_dir"' db='"$BLACKOUT_DB"' version=0123456789abcdef0123456789abcdef01234567 reinstall=1 repo=https://github.com/148943/blackout.git branch=master xray_config='"$BLACKOUT_XRAY_CONFIG"' xray_service='"$BLACKOUT_XRAY_SERVICE_PATH" "$BLACKOUT_TEST_LOG"
 [ -f "$BLACKOUT_API_SERVICE_PATH" ]
 grep -q 'ExecStart=/usr/bin/python3 "'"$install_dir/api/blackout_api.py"'"' "$BLACKOUT_API_SERVICE_PATH"
 grep -q 'systemctl daemon-reload' "$BLACKOUT_TEST_LOG"
@@ -237,6 +298,21 @@ token_two="$(bo_api_generate_token)"
 [ "${#token_one}" -ge 32 ]
 [ "$token_one" != "$token_two" ]
 
+xray_install_log="$tmp/xray-install.log"
+: >"$xray_install_log"
+bo_xray_install_version() { printf 'xray_install %s\n' "$1" >>"$xray_install_log"; }
+printf '#!/usr/bin/env bash\n' >"$bin/xray"
+chmod +x "$bin/xray"
+BLACKOUT_REINSTALL=1 bo_install_xray_initial
+if grep -q 'xray_install' "$xray_install_log"; then
+  echo "reinstall replaced existing Xray core" >&2
+  exit 1
+fi
+rm -f "$bin/xray"
+BLACKOUT_REINSTALL=1 bo_install_xray_initial
+grep -q 'xray_install latest' "$xray_install_log"
+unset BLACKOUT_REINSTALL
+
 cron_file="$tmp/etc/cron.d/blackout-expire"
 api_service_path="$tmp/etc/systemd/system/blackout-api.service"
 api_space_root="$tmp/path with spaces"
@@ -319,7 +395,28 @@ bo_install_prompt() {
   printf -v "$1" '%s' 'api.example.com'
   printf -v "$2" '%s' 'admin@example.com'
 }
+bo_install_prompt_missing() {
+  echo "installer prompted unexpectedly" >&2
+  exit 1
+}
+bo_install_prompt_value() {
+  if [ -n "${3:-}" ]; then
+    printf -v "$1" '%s' "$3"
+    return 0
+  fi
+  case "$2" in
+    Domain) printf -v "$1" '%s' 'api.example.com' ;;
+    "ACME email") printf -v "$1" '%s' 'admin@example.com' ;;
+    *) return 1 ;;
+  esac
+}
 bo_db_init() { printf 'db_init\n' >>"$install_main_log"; }
+bo_setting_get() {
+  case "$1" in
+    domain) printf '%s\n' "${BLACKOUT_TEST_STORED_DOMAIN:-}" ;;
+    acme_email) printf '%s\n' "${BLACKOUT_TEST_STORED_ACME_EMAIL:-}" ;;
+  esac
+}
 bo_setting_set() { printf 'setting %s %s\n' "$1" "$2" >>"$install_main_log"; }
 bo_acme_install() { printf 'acme_install %s\n' "$1" >>"$install_main_log"; }
 bo_cert_issue() { printf 'cert_issue %s %s\n' "$1" "$2" >>"$install_main_log"; }
@@ -359,6 +456,31 @@ fi
 grep -q 'BLACKOUT_API_TOKEN="main-token"' "$main_env"
 grep -q 'BLACKOUT_API_ADAPTER="'"$main_install_dir/lib/api.sh"'"' "$main_env"
 unset BLACKOUT_API_TOKEN
+
+BLACKOUT_TEST_STORED_DOMAIN="reuse.example.com"
+BLACKOUT_TEST_STORED_ACME_EMAIL="reuse@example.com"
+bo_install_prompt_value() {
+  if [ -z "${3:-}" ]; then
+    bo_install_prompt_missing "$@"
+  fi
+  printf -v "$1" '%s' "$3"
+}
+bo_install_main
+grep -q 'cert_issue reuse@example.com reuse.example.com' "$install_main_log"
+grep -q 'setting domain reuse.example.com' "$install_main_log"
+grep -q 'setting acme_email reuse@example.com' "$install_main_log"
+unset BLACKOUT_TEST_STORED_DOMAIN BLACKOUT_TEST_STORED_ACME_EMAIL
+bo_install_prompt_value() {
+  if [ -n "${3:-}" ]; then
+    printf -v "$1" '%s' "$3"
+    return 0
+  fi
+  case "$2" in
+    Domain) printf -v "$1" '%s' 'api.example.com' ;;
+    "ACME email") printf -v "$1" '%s' 'admin@example.com' ;;
+    *) return 1 ;;
+  esac
+}
 
 unsafe_env="$tmp/unsafe-existing.env"
 unsafe_marker="$tmp/unsafe-existing-ran"

@@ -107,7 +107,7 @@ If loopback works but HTTPS fails, run `nginx -t` and confirm the active profile
 
 `blackout update check` is read-only.
 
-`blackout update` updates Blackout scripts and config templates only. It does not update Xray core.
+`blackout update` downloads the latest Blackout source and re-runs `install.sh` in reinstall mode. It reuses saved installation values when available and only asks for missing values. The default config profile is refreshed, while custom config folders and an already installed Xray core binary are preserved.
 
 Use Xray commands for Xray core:
 

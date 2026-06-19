@@ -171,8 +171,7 @@ bo_update_copy_tree() {
 
 bo_update_run() {
   bo_need_root
-  bo_need_cmd python3
-  local repo branch remote update_tmp backup bin_path install_dir env_file etc_dir state_dir db_path api_service_path api_service_name
+  local repo branch remote update_tmp backup bin_path install_dir env_file etc_dir state_dir db_path api_service_path xray_config xray_service_path
   bo_update_stable_cwd
   repo="$(bo_update_repo)"
   branch="$(bo_update_branch)"
@@ -185,8 +184,8 @@ bo_update_run() {
   state_dir="${BLACKOUT_STATE_DIR:-/var/lib/blackout}"
   db_path="${BLACKOUT_DB:-$state_dir/blackout.db}"
   api_service_path="${BLACKOUT_API_SERVICE_PATH:-/etc/systemd/system/blackout-api.service}"
-  api_service_name="$(basename "$api_service_path")"
-  api_service_name="${api_service_name%.service}"
+  xray_config="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}"
+  xray_service_path="${BLACKOUT_XRAY_SERVICE_PATH:-/etc/systemd/system/xray.service}"
 
   update_tmp="$(mktemp -d)"
   backup="${BLACKOUT_BACKUP_DIR:-/var/backups/blackout}/update-$(date +%Y%m%d-%H%M%S)"
@@ -196,21 +195,22 @@ bo_update_run() {
   [ -e "$bin_path" ] && cp -a "$bin_path" "$backup/"
   [ -d "$install_dir" ] && cp -a "$install_dir" "$backup/opt-blackout"
 
-  install -Dm755 "$update_tmp/src/blackout" "$bin_path"
-  bo_update_copy_tree "$update_tmp/src" "$install_dir"
-  bo_update_ensure_api_env "$env_file" "$install_dir"
-  bo_update_write_version "$remote"
-  bo_api_install_service \
-    "$api_service_path" \
-    "$install_dir/api/blackout_api.py" \
-    "$env_file" \
-    "$state_dir" \
-    "$etc_dir" \
-    "$db_path"
-  systemctl daemon-reload
-  if systemctl is-enabled -q "$api_service_name"; then
-    systemctl restart "$api_service_name"
-  fi
+  BLACKOUT_REINSTALL=1 \
+  BLACKOUT_REPO="$repo" \
+  BLACKOUT_BRANCH="$branch" \
+  BLACKOUT_VERSION="$remote" \
+  BLACKOUT_BIN_PATH="$bin_path" \
+  BLACKOUT_INSTALL_DIR="$install_dir" \
+  BLACKOUT_INSTALLED_LIB_DIR="$install_dir/lib" \
+  BLACKOUT_INSTALLED_CONFIG_DIR="$install_dir/configs" \
+  BLACKOUT_ENV="$env_file" \
+  BLACKOUT_ETC_DIR="$etc_dir" \
+  BLACKOUT_STATE_DIR="$state_dir" \
+  BLACKOUT_DB="$db_path" \
+  BLACKOUT_XRAY_CONFIG="$xray_config" \
+  BLACKOUT_XRAY_SERVICE_PATH="$xray_service_path" \
+  BLACKOUT_API_SERVICE_PATH="$api_service_path" \
+  bash "$update_tmp/src/install.sh"
   rm -rf "$update_tmp"
   bo_log "updated Blackout from $repo@$branch ($remote)"
 }

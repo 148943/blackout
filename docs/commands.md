@@ -105,7 +105,7 @@ blackout update
 ```
 
 - `update check`: read-only. Prints the installed Blackout version, remote branch commit, and status such as latest, update available, or unknown installed version. It does not modify files.
-- `update`: updates Blackout scripts and the shipped `/opt/blackout/configs/default` profile from the configured repository and branch, then records the installed commit in `/etc/blackout/blackout.env`. It does not update Xray core or custom config folders.
+- `update`: downloads the configured repository and branch, then re-runs the new `install.sh` in reinstall mode so services, config templates, cron, and API service files are refreshed. It reuses the saved domain, ACME email, Cloudflare token, install paths, database path, and API token when available, and only prompts for missing values. The shipped `/opt/blackout/configs/default` profile is overwritten; custom config folders are preserved. An existing Xray core binary is kept; use `blackout xray update` or `blackout xray version VERSION` to change Xray core.
 
 ## User API
 
