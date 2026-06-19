@@ -54,8 +54,9 @@ vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}
 
 The shipped profile is `default`.
 
-- Xray listens on a Unix socket at `/dev/shm/blackout-vless.sock`.
-- Nginx terminates TLS on port `443` and proxies WebSocket traffic to the Xray socket.
+- Xray logs to `/var/log/xray/access.log` and `/var/log/xray/error.log` at `warning` level.
+- Xray listens on Unix sockets at `/dev/shm/blackout-vless.sock` and `/dev/shm/blackout-xhttp.sock`.
+- Nginx terminates TLS on port `443` and proxies WebSocket traffic on `/vless` and XHTTP traffic on `/xhttp` to the Xray sockets.
 - HTTP on port `80` redirects to HTTPS, with an ACME challenge location present in the Nginx template.
 - The local Xray API listens on `127.0.0.1` using the configured API port, defaulting to `60001`.
 - Xray `HandlerService` and `StatsService` are enabled for runtime user management and stats.

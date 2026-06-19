@@ -29,7 +29,7 @@ The prompt asks for:
 - Username.
 - Duration, for example `12h`, `7d`, `30d`, or `1m`.
 
-Blackout generates a UUID, stores the user in SQLite, and calls Xray API `adu` against the active inbound. If the Xray API add fails, the user row is marked `locked`.
+Blackout generates a UUID, stores the user in SQLite, and calls Xray API `adu` for every VLESS user inbound in the active Xray config. If any Xray API add fails, the user row is marked `locked`.
 
 ## Links
 
@@ -47,9 +47,9 @@ blackout user unlock USERNAME
 blackout user remove USERNAME
 ```
 
-- `lock` removes the user from Xray runtime state and keeps the SQLite row with status `locked`.
-- `unlock` re-adds the user to Xray runtime state if the stored expiry is still in the future.
-- `remove` removes the user from Xray runtime state and deletes the SQLite row.
+- `lock` removes the user from every Xray user inbound and keeps the SQLite row with status `locked`.
+- `unlock` re-adds the user to every Xray user inbound if the stored expiry is still in the future.
+- `remove` removes the user from every Xray user inbound and deletes the SQLite row.
 
 ## Modify
 

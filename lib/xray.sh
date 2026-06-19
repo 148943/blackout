@@ -94,9 +94,9 @@ bo_xray_verify_zip() {
 }
 
 bo_xray_install_service() {
-  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_path="${2:-$BLACKOUT_XRAY_CONFIG}" config_dir
+  local service_path="${1:-$BLACKOUT_XRAY_SERVICE_PATH}" config_path="${2:-$BLACKOUT_XRAY_CONFIG}" config_dir log_dir="${BLACKOUT_XRAY_LOG_DIR:-/var/log/xray}"
   config_dir="$(dirname "$config_path")"
-  mkdir -p "$(dirname "$service_path")" "$config_dir"
+  mkdir -p "$(dirname "$service_path")" "$config_dir" "$log_dir"
   cat >"$service_path" <<UNIT
 [Unit]
 Description=Xray Service
@@ -114,7 +114,7 @@ NoNewPrivileges=true
 PrivateTmp=false
 ProtectHome=true
 ProtectSystem=full
-ReadWritePaths=$config_dir /etc/blackout /var/lib/blackout /dev/shm
+ReadWritePaths=$config_dir /etc/blackout /var/lib/blackout /dev/shm $log_dir
 
 [Install]
 WantedBy=multi-user.target

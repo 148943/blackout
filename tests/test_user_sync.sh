@@ -8,12 +8,21 @@ BLACKOUT_ETC_DIR="$(mktemp -d)"
 tmpdb="$(mktemp)"
 trap 'rm -rf "$BLACKOUT_ETC_DIR" "$tmpdb"' EXIT
 BLACKOUT_DB="$tmpdb"
+BLACKOUT_XRAY_CONFIG="$BLACKOUT_ETC_DIR/xray.json"
 
 . "$ROOT_DIR/lib/db.sh"
 . "$ROOT_DIR/lib/users.sh"
 
 bo_db_init
-bo_setting_set active_inbound vless
+cat >"$BLACKOUT_XRAY_CONFIG" <<'JSON'
+{
+  "inbounds": [
+    {"tag": "api", "protocol": "dokodemo-door"},
+    {"tag": "vless", "protocol": "vless", "settings": {"clients": []}},
+    {"tag": "xhttp", "protocol": "vless", "settings": {"clients": []}}
+  ]
+}
+JSON
 
 bo_xray_events=""
 bo_xray_api() {
@@ -27,7 +36,8 @@ with open(sys.argv[1], encoding="utf-8") as config_file:
     config = json.load(config_file)
 
 client = config["inbounds"][0]["settings"]["clients"][0]
-print(f"{client['email']} {client['id']} {client['level']}")
+tag = config["inbounds"][0]["tag"]
+print(f"{tag} {client['email']} {client['id']} {client['level']}")
 PY
       ;;
     *)
@@ -42,9 +52,11 @@ bo_db_user_insert locked 00000000-0000-0000-0000-000000000033 locked@example 0 l
 bo_db_user_insert expired 00000000-0000-0000-0000-000000000034 expired@example 0 active 100 101
 
 bo_user_sync_active_to_xray
-grep -qx 'active1 00000000-0000-0000-0000-000000000031 0' "$BLACKOUT_ETC_DIR/events"
-grep -qx 'active2 00000000-0000-0000-0000-000000000032 3' "$BLACKOUT_ETC_DIR/events"
-if grep -q '^locked ' "$BLACKOUT_ETC_DIR/events" || grep -q '^expired ' "$BLACKOUT_ETC_DIR/events"; then
+grep -qx 'vless active1 00000000-0000-0000-0000-000000000031 0' "$BLACKOUT_ETC_DIR/events"
+grep -qx 'xhttp active1 00000000-0000-0000-0000-000000000031 0' "$BLACKOUT_ETC_DIR/events"
+grep -qx 'vless active2 00000000-0000-0000-0000-000000000032 3' "$BLACKOUT_ETC_DIR/events"
+grep -qx 'xhttp active2 00000000-0000-0000-0000-000000000032 3' "$BLACKOUT_ETC_DIR/events"
+if grep -q ' locked ' "$BLACKOUT_ETC_DIR/events" || grep -q ' expired ' "$BLACKOUT_ETC_DIR/events"; then
   echo "inactive user replayed" >&2
   exit 1
 fi

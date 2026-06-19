@@ -8,6 +8,7 @@ BLACKOUT_ETC_DIR="$(mktemp -d)"
 tmpdb="$(mktemp)"
 trap 'rm -rf "$BLACKOUT_ETC_DIR" "$tmpdb"' EXIT
 BLACKOUT_DB="$tmpdb"
+BLACKOUT_XRAY_CONFIG="$BLACKOUT_ETC_DIR/xray.json"
 
 . "$ROOT_DIR/lib/db.sh"
 . "$ROOT_DIR/lib/users.sh"
@@ -24,15 +25,23 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as config_file:
     config = json.load(config_file)
 
-client = config["inbounds"][0]["settings"]["clients"][0]
-assert config["inbounds"][0]["tag"] == "vless"
-assert config["inbounds"][0]["listen"] == "127.0.0.1"
-assert config["inbounds"][0]["port"] == 1
+inbound = config["inbounds"][0]
+client = inbound["settings"]["clients"][0]
+assert inbound["tag"] in {"vless", "xhttp"}
+assert inbound["listen"] == "127.0.0.1"
+assert inbound["port"] == 1
 assert client["id"] == "00000000-0000-0000-0000-000000000001"
 assert client["email"] == "aiman"
 assert client["level"] == 0
 PY
-      bo_xray_events="${bo_xray_events}adu:$2"$'\n'
+      tag="$(python3 - "$2" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    print(json.load(config_file)["inbounds"][0]["tag"])
+PY
+)"
+      bo_xray_events="${bo_xray_events}adu:$tag:$2"$'\n'
       ;;
     rmu)
       bo_xray_events="${bo_xray_events}$*"$'\n'
@@ -76,7 +85,15 @@ JSON
 }
 
 bo_db_init
-bo_setting_set active_inbound vless
+cat >"$BLACKOUT_XRAY_CONFIG" <<'JSON'
+{
+  "inbounds": [
+    {"tag": "api", "protocol": "dokodemo-door"},
+    {"tag": "vless", "protocol": "vless", "settings": {"clients": []}},
+    {"tag": "xhttp", "protocol": "vless", "settings": {"clients": []}}
+  ]
+}
+JSON
 
 for cmd in remove modify lock unlock link; do
   output="$(
@@ -105,7 +122,13 @@ bo_db_user_insert zulu 00000000-0000-0000-0000-000000000013 zulu@example 0 locke
 [ "$(bo_db_users_rows | cut -f1 | paste -sd, -)" = "aiman,zulu" ]
 bo_db_user_delete zulu
 printf '%s' "$bo_xray_events" | grep -Eq '^adu:'
-adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu://p' | head -n 1)"
+printf '%s' "$bo_xray_events" | grep -Eq '^adu:vless:'
+printf '%s' "$bo_xray_events" | grep -Eq '^adu:xhttp:'
+if [ "$(printf '%s' "$bo_xray_events" | grep -c '^adu:')" != 2 ]; then
+  echo "user was not added to all xray inbounds" >&2
+  exit 1
+fi
+adu_file="$(printf '%s' "$bo_xray_events" | sed -n 's/^adu:[^:]*://p' | head -n 1)"
 [ -n "$adu_file" ]
 [ ! -e "$adu_file" ]
 
@@ -173,9 +196,14 @@ fi
 bo_user_lock aiman
 bo_db_user_status aiman | grep -qx locked
 printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless aiman'
+printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=xhttp aiman'
 
 bo_user_unlock aiman
 bo_db_user_status aiman | grep -qx active
+if [ "$(printf '%s' "$bo_xray_events" | grep -c '^adu:')" != 4 ]; then
+  echo "user was not unlocked into all xray inbounds" >&2
+  exit 1
+fi
 
 bo_setting_set profile default
 bo_setting_set domain '*.vpn.example'
@@ -258,6 +286,7 @@ if bo_user_link stale >/dev/null 2>&1; then
   exit 1
 fi
 printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless stale'
+printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=xhttp stale'
 bo_db_user_status stale | grep -qx expired
 
 bo_db_user_insert stale_fail 00000000-0000-0000-0000-000000000008 stale_fail@example 0 active 100 101
@@ -295,6 +324,7 @@ if bo_user_unlock unlock_expired >/dev/null 2>&1; then
   exit 1
 fi
 printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=vless unlock_expired'
+printf '%s' "$bo_xray_events" | grep -qx 'rmu -tag=xhttp unlock_expired'
 bo_db_user_status unlock_expired | grep -qx expired
 
 bo_db_user_insert unlock_fail 00000000-0000-0000-0000-000000000010 unlock_fail@example 0 active 100 101

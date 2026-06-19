@@ -266,10 +266,13 @@ grep -q 'WantedBy=multi-user.target' "$api_service_path"
 
 service_path="$tmp/etc/systemd/system/xray.service"
 config_dir="$tmp/etc/xray"
+export BLACKOUT_XRAY_LOG_DIR="$tmp/var/log/xray"
 bo_xray_install_service "$service_path" "$config_dir/config.json"
 [ -d "$config_dir" ]
+[ -d "$BLACKOUT_XRAY_LOG_DIR" ]
 grep -q "ExecStart=/usr/local/bin/xray run -config $config_dir/config.json" "$service_path"
 grep -q 'Restart=on-failure' "$service_path"
+grep -q "ReadWritePaths=$config_dir /etc/blackout /var/lib/blackout /dev/shm $BLACKOUT_XRAY_LOG_DIR" "$service_path"
 grep -q 'WantedBy=multi-user.target' "$service_path"
 
 custom_service_path="$tmp/etc/systemd/system/xray-custom.service"

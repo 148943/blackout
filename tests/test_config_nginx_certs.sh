@@ -151,6 +151,12 @@ PY
 )"
 [ "$rendered_inbound" = "$(bo_user_active_inbound)" ]
 grep -q 'blackout-vless.sock,0666' "$BLACKOUT_XRAY_CONFIG"
+grep -q 'blackout-xhttp.sock,0666' "$BLACKOUT_XRAY_CONFIG"
+grep -q '"access": "/var/log/xray/access.log"' "$BLACKOUT_XRAY_CONFIG"
+grep -q '"error": "/var/log/xray/error.log"' "$BLACKOUT_XRAY_CONFIG"
+grep -q '"loglevel": "warning"' "$BLACKOUT_XRAY_CONFIG"
+grep -q 'location = /xhttp' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'location /blackout-api/' "$tmp/etc/nginx/sites-available/blackout"

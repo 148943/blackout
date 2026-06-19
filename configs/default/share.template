@@ -1,2 +1,5 @@
 VLESS WS TLS
 vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}
+
+VLESS XHTTP TLS
+vless://{{UUID}}@{{DOMAIN}}:443?type=xhttp&security=tls&path=/xhttp&host={{DOMAIN}}#{{USERNAME}}-xhttp

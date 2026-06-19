@@ -57,10 +57,35 @@ bo_user_active_inbound() {
   bo_user_setting active_inbound vless
 }
 
-bo_xray_add_user() {
-  local username="$1" uuid="$2" level="${3:-0}" tag tmp
-  [[ "$level" =~ ^[0-9]+$ ]] || return 1
-  tag="$(bo_user_active_inbound)" || return 1
+bo_xray_user_inbounds() {
+  local config="${BLACKOUT_XRAY_CONFIG:-/etc/xray/config.json}" fallback
+  if [ -f "$config" ]; then
+    python3 - "$config" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    config = json.load(config_file)
+
+for inbound in config.get("inbounds", []):
+    tag = inbound.get("tag", "")
+    if not tag or tag == "api":
+        continue
+    if inbound.get("protocol") != "vless":
+        continue
+    settings = inbound.get("settings", {})
+    if not isinstance(settings.get("clients"), list):
+        continue
+    print(tag)
+PY
+    return
+  fi
+  fallback="$(bo_user_active_inbound)" || return 1
+  printf '%s\n' "$fallback"
+}
+
+bo_xray_add_user_to_inbound() {
+  local tag="$1" username="$2" uuid="$3" level="${4:-0}" tmp status
   tmp="$(mktemp)" || return 1
   {
     printf '{\n'
@@ -84,15 +109,30 @@ bo_xray_add_user() {
     return 1
   }
   bo_xray_api adu "$tmp"
-  local status=$?
+  status=$?
   rm -f "$tmp"
   return "$status"
 }
 
+bo_xray_add_user() {
+  local username="$1" uuid="$2" level="${3:-0}" tag tags
+  [[ "$level" =~ ^[0-9]+$ ]] || return 1
+  tags="$(bo_xray_user_inbounds)" || return 1
+  [ -n "$tags" ] || return 1
+  while IFS= read -r tag; do
+    [ -n "$tag" ] || continue
+    bo_xray_add_user_to_inbound "$tag" "$username" "$uuid" "$level" || return 1
+  done <<<"$tags"
+}
+
 bo_xray_remove_user() {
-  local username="$1" tag
-  tag="$(bo_user_active_inbound)" || return 1
-  bo_xray_api rmu "-tag=$tag" "$username"
+  local username="$1" tag tags
+  tags="$(bo_xray_user_inbounds)" || return 1
+  [ -n "$tags" ] || return 1
+  while IFS= read -r tag; do
+    [ -n "$tag" ] || continue
+    bo_xray_api rmu "-tag=$tag" "$username" || return 1
+  done <<<"$tags"
 }
 
 bo_user_sync_active_to_xray() {
