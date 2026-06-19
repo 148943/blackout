@@ -211,11 +211,15 @@ bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS WS HTTP:' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=ws&security=none&path=/vless&host=vpn.example#aiman-ws-http' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=ws&security=none&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS XHTTP TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=xhttp&security=tls&path=/xhttp&host=vpn.example#aiman-xhttp' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=xhttp&security=tls&path=/xhttp&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS XHTTP HTTP:' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=xhttp&security=none&path=/xhttp&host=vpn.example#aiman-xhttp-http' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=xhttp&security=none&path=/xhttp&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
+if grep -q '#aiman-' "$BLACKOUT_ETC_DIR/default-links.out"; then
+  echo "default share link added suffix after username" >&2
+  exit 1
+fi
 if grep -q '\*\.vpn.example' "$BLACKOUT_ETC_DIR/default-links.out"; then
   echo "wildcard domain leaked into share link" >&2
   exit 1
