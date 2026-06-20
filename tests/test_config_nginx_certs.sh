@@ -155,7 +155,7 @@ grep -q 'blackout-xhttp.sock,0666' "$BLACKOUT_XRAY_CONFIG"
 grep -q '"access": "/var/log/xray/access.log"' "$BLACKOUT_XRAY_CONFIG"
 grep -q '"error": "/var/log/xray/error.log"' "$BLACKOUT_XRAY_CONFIG"
 grep -q '"loglevel": "warning"' "$BLACKOUT_XRAY_CONFIG"
-grep -q 'location = /xhttp' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'location ^~ /xhttp' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless' "$tmp/etc/nginx/sites-available/blackout"
@@ -168,7 +168,7 @@ required = [
     "location = /vless",
     "proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless",
     "proxy_set_header X-Forwarded-Proto http;",
-    "location = /xhttp",
+    "location ^~ /xhttp",
     "proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp",
 ]
 missing = [line for line in required if line not in first_server]
