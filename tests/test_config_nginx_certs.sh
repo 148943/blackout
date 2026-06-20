@@ -159,6 +159,22 @@ grep -q 'location = /xhttp' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless' "$tmp/etc/nginx/sites-available/blackout"
+python3 - "$tmp/etc/nginx/sites-available/blackout" <<'PY'
+import sys
+
+nginx = open(sys.argv[1], encoding="utf-8").read()
+first_server = nginx.split("\nserver {", 1)[0]
+required = [
+    "location = /vless",
+    "proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless",
+    "proxy_set_header X-Forwarded-Proto http;",
+    "location = /xhttp",
+    "proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp",
+]
+missing = [line for line in required if line not in first_server]
+if missing:
+    raise SystemExit(f"port 80 server missing HTTP proxy lines: {missing}")
+PY
 grep -q 'location /blackout-api/' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://127.0.0.1:8787' "$tmp/etc/nginx/sites-available/blackout"
 grep -q "ssl_certificate $tmp/etc/ssl/fullchain.pem;" "$tmp/etc/nginx/sites-available/blackout"
