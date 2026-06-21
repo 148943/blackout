@@ -37,6 +37,18 @@ bo_tui_leave() {
   BO_TUI_ACTIVE=0
 }
 
+bo_tui_suspend_raw() {
+  if [ "${BLACKOUT_TUI_TEST:-0}" != 1 ] && [ "$BO_TUI_ACTIVE" = 1 ] && [ -n "$BO_TUI_STTY" ]; then
+    stty "$BO_TUI_STTY" </dev/tty 2>/dev/null || true
+  fi
+}
+
+bo_tui_resume_raw() {
+  if [ "${BLACKOUT_TUI_TEST:-0}" != 1 ] && [ "$BO_TUI_ACTIVE" = 1 ]; then
+    stty -echo -icanon time 0 min 0 </dev/tty 2>/dev/null || true
+  fi
+}
+
 bo_tui_dimensions() {
   local dimensions
   if [ -n "${BLACKOUT_TUI_ROWS:-}" ] && [ -n "${BLACKOUT_TUI_COLS:-}" ]; then
@@ -209,14 +221,16 @@ bo_tui_input() {
 }
 
 bo_tui_confirm() {
-  local message="$1" answer
+  local message="$1" answer status=0
   if [ -n "${BLACKOUT_TUI_CONFIRM+x}" ]; then
     [ "$BLACKOUT_TUI_CONFIRM" = yes ]
     return
   fi
   if bo_tui_has_gum; then
-    gum confirm --default=false "$message"
-    return
+    bo_tui_suspend_raw
+    gum confirm --default=false "$message" || status=$?
+    bo_tui_resume_raw
+    return "$status"
   fi
   if [ "${BLACKOUT_TUI_TEST:-0}" = 1 ]; then
     return 1

@@ -94,7 +94,21 @@ export PATH
 
 bo_tui_has_gum
 [ "$(bo_tui_input Label default)" = gum-value ]
+terminal_mode_log="$tmp/terminal-mode.log"
+bo_tui_suspend_raw() { printf 'suspend\n' >>"$terminal_mode_log"; }
+bo_tui_resume_raw() { printf 'resume\n' >>"$terminal_mode_log"; }
 bo_tui_confirm 'Gum confirm'
+[ "$(cat "$terminal_mode_log")" = $'suspend\nresume' ]
+: >"$terminal_mode_log"
+BLACKOUT_GUM_CONFIRM_STATUS=1
+export BLACKOUT_GUM_CONFIRM_STATUS
+if bo_tui_confirm 'Reject Gum confirm'; then
+  echo 'rejected Gum confirmation returned success' >&2
+  exit 1
+fi
+unset BLACKOUT_GUM_CONFIRM_STATUS
+[ "$(cat "$terminal_mode_log")" = $'suspend\nresume' ]
+unset -f bo_tui_suspend_raw bo_tui_resume_raw
 grep -q '^gum input ' "$BLACKOUT_TUI_TEST_LOG"
 grep -q '^gum confirm ' "$BLACKOUT_TUI_TEST_LOG"
 
