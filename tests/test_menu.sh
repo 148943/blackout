@@ -75,6 +75,12 @@ bo_update_check() {
 
 bo_menu_init
 frame="$(bo_menu_render)"
+[ "${frame#$'\033[H'}" != "$frame" ]
+if [[ "$frame" == *$'\033[2J'* ]]; then
+  echo 'menu render clears the full screen during navigation' >&2
+  exit 1
+fi
+[[ "$frame" == *$'\033[J' ]]
 [ "$(wc -l <<<"$frame")" -le "$BLACKOUT_TUI_ROWS" ]
 grep -q 'BLACKOUT' <<<"$frame"
 grep -q 'test-version' <<<"$frame"

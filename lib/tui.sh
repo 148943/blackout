@@ -25,7 +25,7 @@ bo_tui_enter() {
     stty -echo -icanon time 0 min 0 </dev/tty 2>/dev/null || true
   fi
   BO_TUI_ACTIVE=1
-  printf '\033[?1049h\033[?25l'
+  printf '\033[?1049h\033[?25l\033[2J\033[H'
 }
 
 bo_tui_leave() {

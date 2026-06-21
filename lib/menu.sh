@@ -359,10 +359,11 @@ bo_menu_render_help() {
 }
 
 bo_menu_render_small() {
-  printf '\033[2J\033[H'
+  printf '\033[H'
   bo_tui_header "Blackout > $(bo_menu_screen_title)"
   printf '\nTerminal too small (%sx%s). Resize to at least 56x18.\n' "$BO_TUI_COLS" "$BO_TUI_ROWS"
   bo_tui_footer 'r Refresh  q Quit'
+  printf '\033[J'
 }
 
 bo_menu_render() {
@@ -375,7 +376,7 @@ bo_menu_render() {
   fi
   title="$(bo_menu_screen_title)"
   selected="$(bo_menu_selected_row)"
-  printf '\033[2J\033[H'
+  printf '\033[H'
   bo_tui_header "Blackout > $title"
   printf '\n'
   if [ "$BO_MENU_SCREEN" = dashboard ]; then
@@ -395,6 +396,7 @@ bo_menu_render() {
   fi
   printf '\n'
   bo_tui_footer '↑/↓ Navigate  Enter Select  r Refresh  b/Esc Back  ? Help  q Quit'
+  printf '\033[J'
 }
 
 bo_menu_open() {
