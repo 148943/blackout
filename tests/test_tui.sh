@@ -81,6 +81,14 @@ trap 'rm -rf "$tmp"' EXIT
 cat >"$tmp/gum" <<'SH'
 #!/usr/bin/env bash
 printf 'gum %s\n' "$*" >>"$BLACKOUT_TUI_TEST_LOG"
+if [ "${1:-}" = spin ] && [ -n "${BLACKOUT_GUM_PTY_LOG:-}" ]; then
+  if [ -t 0 ]; then
+    printf 'stdin=tty\n' >>"$BLACKOUT_GUM_PTY_LOG"
+  else
+    printf 'stdin=notty\n' >>"$BLACKOUT_GUM_PTY_LOG"
+  fi
+  stty sane </dev/tty
+fi
 case "$1" in
   input) printf 'gum-value\n' ;;
   confirm) exit "${BLACKOUT_GUM_CONFIRM_STATUS:-0}" ;;
@@ -91,6 +99,61 @@ chmod +x "$tmp/gum"
 export BLACKOUT_TUI_TEST_LOG="$tmp/gum.log"
 PATH="$tmp:$PATH"
 export PATH
+
+cat >"$tmp/gum-spinner-pty.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+BLACKOUT_LIB_DIR="$BLACKOUT_TEST_ROOT/lib"
+BLACKOUT_TUI_TEST=0
+NO_COLOR=1
+. "$BLACKOUT_LIB_DIR/common.sh"
+. "$BLACKOUT_LIB_DIR/tui.sh"
+
+BO_TUI_ACTIVE=1
+BO_TUI_STTY="$(stty -g </dev/tty)"
+trap 'stty "$BO_TUI_STTY" </dev/tty 2>/dev/null || true' EXIT
+stty -echo -icanon time 0 min 0 </dev/tty
+before="$(stty -g </dev/tty)"
+
+mock_read_count=0
+read() {
+  [ "$mock_read_count" -lt 5 ] || return 1
+  mock_read_count=$((mock_read_count + 1))
+}
+BLACKOUT_TUI_FLUSH_LIMIT=3 bo_tui_flush_input
+if [ "$mock_read_count" -ne 3 ]; then
+  printf 'flush exceeded byte limit: expected=3 actual=%s\n' "$mock_read_count" >&2
+  exit 1
+fi
+unset -f read
+
+output="$(bo_tui_run 'PTY operation' sh -c 'sleep 0.05; printf pty-done')"
+if [ "$output" != pty-done ]; then
+  printf 'unexpected PTY operation output: %q\n' "$output" >&2
+  exit 1
+fi
+after="$(stty -g </dev/tty)"
+if [ "$after" != "$before" ]; then
+  printf 'terminal mode changed: before=%s after=%s\n' "$before" "$after" >&2
+  exit 1
+fi
+
+if leftover="$(bo_tui_read_key 0.05)"; then
+  printf 'leftover input after Gum action: %q\n' "$leftover" >&2
+  exit 1
+fi
+SH
+chmod +x "$tmp/gum-spinner-pty.sh"
+export BLACKOUT_TEST_ROOT="$ROOT_DIR"
+export BLACKOUT_GUM_PTY_LOG="$tmp/gum-pty.log"
+if ! { sleep 0.02; printf '\n'; sleep 0.5; } | \
+  script -qefc "$tmp/gum-spinner-pty.sh" /dev/null >"$tmp/pty-session.log"; then
+  cat "$tmp/pty-session.log" >&2
+  exit 1
+fi
+grep -q '^stdin=notty$' "$BLACKOUT_GUM_PTY_LOG"
+unset BLACKOUT_TEST_ROOT BLACKOUT_GUM_PTY_LOG
 
 bo_tui_has_gum
 [ "$(bo_tui_input Label default)" = gum-value ]

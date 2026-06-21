@@ -150,6 +150,23 @@ grep -q 'Modify duration' <<<"$detail_frame"
 grep -q 'Lock' <<<"$detail_frame"
 grep -q 'Remove' <<<"$detail_frame"
 
+original_flush="$(declare -f bo_tui_flush_input 2>/dev/null || true)"
+flush_counter="$tmp/flush-counter"
+: >"$flush_counter"
+bo_tui_flush_input() { printf 'flush\n' >>"$flush_counter"; }
+BO_MENU_SELECTION=0
+bo_menu_activate
+[ "$(wc -l <"$flush_counter")" -eq 1 ]
+grep -q '^user:link aiman$' "$events_file"
+grep -q 'Completed: Links for aiman' <<<"$BO_MENU_RESULT"
+if grep -q '^user:modify:aiman:' "$events_file"; then
+  echo 'Link action jumped to Modify duration' >&2
+  exit 1
+fi
+[ "$BO_MENU_SCREEN" = user-detail ]
+[ "$BO_MENU_SELECTION" -eq 0 ]
+eval "$original_flush"
+
 BLACKOUT_TUI_CONFIRM=no
 BO_MENU_SELECTION=2
 bo_menu_activate

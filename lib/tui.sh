@@ -37,6 +37,14 @@ bo_tui_leave() {
   BO_TUI_ACTIVE=0
 }
 
+bo_tui_flush_input() {
+  local discarded count=0 limit="${BLACKOUT_TUI_FLUSH_LIMIT:-4096}"
+  [ "${BLACKOUT_TUI_TEST:-0}" != 1 ] || return 0
+  while [ "$count" -lt "$limit" ] && IFS= read -rsn1 -t 0.01 discarded </dev/tty; do
+    count=$((count + 1))
+  done
+}
+
 bo_tui_dimensions() {
   local dimensions
   if [ -n "${BLACKOUT_TUI_ROWS:-}" ] && [ -n "${BLACKOUT_TUI_COLS:-}" ]; then
@@ -228,7 +236,7 @@ bo_tui_confirm() {
 }
 
 bo_tui_run() {
-  local title="$1" output status=0 frame index=0 pid
+  local title="$1" output status=0 frame index=0 pid tty_mode=""
   shift
   output="$(mktemp)" || return 1
   "$@" >"$output" 2>&1 &
@@ -238,8 +246,11 @@ bo_tui_run() {
       gum spin --spinner dot --title "$title" -- \
         sh -c 'while kill -0 "$1" 2>/dev/null && [ "$(awk "{print \\$3}" "/proc/$1/stat" 2>/dev/null)" != Z ]; do sleep 0.05; done' wait "$pid" >/dev/null 2>&1 || true
     else
+      tty_mode="$(stty -g </dev/tty 2>/dev/null || true)"
       gum spin --spinner dot --title "$title" -- \
-        sh -c 'while kill -0 "$1" 2>/dev/null && [ "$(awk "{print \\$3}" "/proc/$1/stat" 2>/dev/null)" != Z ]; do sleep 0.05; done' wait "$pid" >/dev/tty 2>&1 || true
+        sh -c 'while kill -0 "$1" 2>/dev/null && [ "$(awk "{print \\$3}" "/proc/$1/stat" 2>/dev/null)" != Z ]; do sleep 0.05; done' wait "$pid" \
+        </dev/null >/dev/tty 2>&1 || true
+      [ -z "$tty_mode" ] || stty "$tty_mode" </dev/tty 2>/dev/null || true
     fi
   else
     if [ "${BLACKOUT_TUI_TEST:-0}" != 1 ] && [ -t 1 ]; then
@@ -254,6 +265,7 @@ bo_tui_run() {
   wait "$pid" || status=$?
   cat "$output"
   rm -f "$output"
+  bo_tui_flush_input
   if [ "$status" -ne 0 ]; then
     printf 'exit status: %s\n' "$status"
     return "$status"
