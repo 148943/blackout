@@ -39,4 +39,8 @@ main() {
   esac
 }
 
+if [ "$(basename "$0")" = menu ]; then
+  set -- menu
+fi
+
 main "$@"
