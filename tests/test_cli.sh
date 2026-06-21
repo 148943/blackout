@@ -20,3 +20,6 @@ output="$(BLACKOUT_LIB_DIR="$tmp/lib" "$tmp/menu" help)"
 
 help_output="$("$ROOT_DIR/blackout" help)"
 grep -q '^Blackout commands:' <<<"$help_output"
+
+grep -Fq '`menu`' "$ROOT_DIR/README.md"
+grep -Fq '`menu`' "$ROOT_DIR/docs/commands.md"

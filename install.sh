@@ -105,15 +105,15 @@ bo_install_menu_alias() {
 
   if [ -L "$menu_path" ]; then
     if [ "$(readlink "$menu_path")" != "$bin_path" ]; then
-      bo_warn "path already exists; not installing menu alias: $menu_path"
-      return 0
+      bo_warn "path already exists; not installing menu alias: $menu_path; you can use blackout menu instead"
     fi
+    return 0
   elif [ -e "$menu_path" ]; then
-    bo_warn "path already exists; not installing menu alias: $menu_path"
+    bo_warn "path already exists; not installing menu alias: $menu_path; you can use blackout menu instead"
     return 0
   fi
 
-  if ! mkdir -p "$(dirname "$menu_path")" || ! ln -sfn "$bin_path" "$menu_path"; then
+  if ! mkdir -p "$(dirname "$menu_path")" || ! ln -sT "$bin_path" "$menu_path"; then
     bo_warn "unable to install menu alias at $menu_path; you can use blackout menu instead"
   fi
 }

@@ -233,6 +233,7 @@ menu_warning="$(bo_install_menu_alias "$menu_test_bin" "$unrelated_menu_path" 2>
 [ -L "$unrelated_menu_path" ]
 [ "$(readlink "$unrelated_menu_path")" = "$unrelated_target" ]
 grep -q 'not installing menu alias' <<<"$menu_warning"
+grep -q 'blackout menu' <<<"$menu_warning"
 
 regular_menu_path="$tmp/menu-alias/regular-file/menu"
 mkdir -p "$(dirname "$regular_menu_path")"
@@ -241,6 +242,41 @@ menu_warning="$(bo_install_menu_alias "$menu_test_bin" "$regular_menu_path" 2>&1
 [ ! -L "$regular_menu_path" ]
 [ "$(cat "$regular_menu_path")" = "preserve me" ]
 grep -q 'not installing menu alias' <<<"$menu_warning"
+grep -q 'blackout menu' <<<"$menu_warning"
+
+race_menu_path="$tmp/menu-alias/race/menu"
+mkdir -p "$(dirname "$race_menu_path")"
+ln() {
+  printf 'race winner\n' >"$race_menu_path"
+  command ln "$@"
+}
+menu_warning="$(bo_install_menu_alias "$menu_test_bin" "$race_menu_path" 2>&1)"
+unset -f ln
+if [ -L "$race_menu_path" ] || [ "$(cat "$race_menu_path")" != "race winner" ]; then
+  echo "race-created menu alias collision was replaced" >&2
+  exit 1
+fi
+grep -q 'unable to install menu alias' <<<"$menu_warning"
+grep -q 'blackout menu' <<<"$menu_warning"
+
+race_directory_path="$tmp/menu-alias/race-directory/menu"
+mkdir -p "$(dirname "$race_directory_path")"
+ln() {
+  mkdir "$race_directory_path"
+  command ln "$@"
+}
+if ! menu_warning="$(bo_install_menu_alias "$menu_test_bin" "$race_directory_path" 2>&1)"; then
+  echo "directory-race menu alias collision was fatal" >&2
+  exit 1
+fi
+unset -f ln
+[ -d "$race_directory_path" ]
+if find "$race_directory_path" -mindepth 1 -print -quit | grep -q .; then
+  echo "menu alias was created inside race-created directory" >&2
+  exit 1
+fi
+grep -q 'unable to install menu alias' <<<"$menu_warning"
+grep -q 'blackout menu' <<<"$menu_warning"
 
 prompt_input="$tmp/prompt-input"
 printf 'vpn.example\nadmin@example.com\n' >"$prompt_input"

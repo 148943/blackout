@@ -46,13 +46,13 @@ blackout user link USERNAME
 - `ACME email`: the email address used by `acme.sh`.
 - `Cloudflare API token`: shown only when the domain starts with `*.`.
 
-The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, enables Xray and Nginx, and prints `blackout status` at the end. The local `blackout-api` service is installed but disabled by default.
+The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, creates `/usr/local/bin/menu` when that path is available, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, enables Xray and Nginx, and prints `blackout status` at the end. The local `blackout-api` service is installed but disabled by default.
 
 Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domains use Cloudflare DNS validation and automatically request both the base domain and wildcard name, for example `new.example.com` and `*.new.example.com`.
 
 ## Administration TUI
 
-Run `blackout` to open the full-screen administration dashboard. It shows stack health, users, the active profile, certificate/API state, and update context. Press `r` to refresh the current status and view data.
+Run `blackout`, `blackout menu`, or the installed `menu` shortcut to open the full-screen administration dashboard. It shows stack health, users, the active profile, certificate/API state, and update context. Press `r` to refresh the current status and view data.
 
 ```text
 ↑/↓ or j/k  Navigate

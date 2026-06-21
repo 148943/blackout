@@ -7,6 +7,7 @@ Run commands as root unless the command is explicitly read-only.
 ```bash
 blackout
 blackout menu
+menu
 blackout status
 blackout help
 blackout --help
@@ -14,6 +15,7 @@ blackout -h
 ```
 
 - `blackout` or `blackout menu`: opens the full-screen administration TUI.
+- `menu`: system-wide shortcut for `blackout menu`; the installer preserves an existing `/usr/local/bin/menu` owned by another program.
 - `blackout status`: checks whether the Blackout stack is usable end to end.
 - `blackout help`, `blackout --help`, `blackout -h`: prints command usage.
 
