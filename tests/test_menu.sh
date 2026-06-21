@@ -56,7 +56,13 @@ bo_cert_cmd() { printf 'cert:%s\n' "$*" >>"$events_file"; }
 bo_config_list() { printf 'default\ncustom\n'; }
 bo_config_current() { printf 'default\n'; }
 bo_config_cmd() { printf 'config:%s\n' "$*" >>"$events_file"; }
-bo_api_control_cmd() { printf 'api:%s\n' "$*" >>"$events_file"; }
+bo_api_control_cmd() {
+  printf 'api:%s\n' "$*" >>"$events_file"
+  if [ "${BLACKOUT_TEST_API_STATUS_INACTIVE:-0}" = 1 ] && [ "${1:-}" = status ]; then
+    printf 'blackout-api.service inactive\n'
+    return 3
+  fi
+}
 bo_update_cmd() { printf 'update:%s\n' "$*" >>"$events_file"; }
 bo_cert_status() {
   printf 'domain: vpn.example\nstatus: ok\n'
@@ -185,6 +191,17 @@ grep -q '^config:switch custom$' "$events_file"
 
 bo_menu_open api
 grep -q 'disabled' <<<"$(bo_menu_render)"
+BO_MENU_SELECTION=2
+BLACKOUT_TEST_API_STATUS_INACTIVE=1
+bo_menu_activate
+unset BLACKOUT_TEST_API_STATUS_INACTIVE
+grep -q '^api:status$' "$events_file"
+grep -q 'API status' <<<"$BO_MENU_RESULT"
+grep -q 'blackout-api.service inactive' <<<"$BO_MENU_RESULT"
+if grep -q 'Failed: API status' <<<"$BO_MENU_RESULT"; then
+  echo 'api status rendered inactive service as failed action' >&2
+  exit 1
+fi
 BO_MENU_SELECTION=1
 BLACKOUT_TUI_CONFIRM=no
 bo_menu_activate

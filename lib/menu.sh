@@ -557,6 +557,10 @@ bo_menu_activate_config() {
   [ -n "$profile" ] && bo_menu_confirm_action "Switch config to $profile" bo_config_cmd switch "$profile" || true
 }
 
+bo_menu_api_status() {
+  bo_api_control_cmd status || true
+}
+
 bo_menu_activate_api() {
   local row
   row="$(bo_menu_selected_row)"
@@ -564,7 +568,7 @@ bo_menu_activate_api() {
   case "$row" in
     Enable) bo_menu_run_action 'Enable API' bo_api_control_cmd enable || true ;;
     Disable) bo_menu_confirm_action 'Disable API' bo_api_control_cmd disable || true ;;
-    Status) bo_menu_run_action 'API status' bo_api_control_cmd status || true ;;
+    Status) bo_menu_run_action 'API status' bo_menu_api_status || true ;;
     'New token') bo_menu_confirm_action 'Rotate API token' bo_api_control_cmd token || true ;;
   esac
 }
