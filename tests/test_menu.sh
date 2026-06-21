@@ -102,8 +102,9 @@ bo_menu_handle_key back
 
 BO_MENU_SELECTION=5
 before="$refresh_count"
-bo_menu_tick
-bo_menu_tick
+bo_menu_handle_key other
+[ "$refresh_count" = "$before" ]
+bo_menu_handle_key refresh
 [ "$refresh_count" -gt "$before" ]
 [ "$BO_MENU_SELECTION" = 5 ]
 
@@ -219,3 +220,26 @@ bo_status_cmd() {
 bo_menu_init
 [ "$(bo_menu_status_value overall)" = failed ]
 [ "$BO_MENU_RUNNING" = 1 ]
+
+loop_counter="$tmp/loop-counter"
+tick_counter="$tmp/tick-counter"
+printf '0\n' >"$loop_counter"
+: >"$tick_counter"
+bo_tui_read_key() {
+  local count
+  count="$(cat "$loop_counter")"
+  count=$((count + 1))
+  printf '%s\n' "$count" >"$loop_counter"
+  if [ "$count" -eq 1 ]; then
+    return 1
+  fi
+  printf 'q'
+}
+bo_menu_tick() {
+  printf 'tick\n' >>"$tick_counter"
+}
+bo_menu >/dev/null
+if [ -s "$tick_counter" ]; then
+  echo 'menu refreshed automatically after input timeout' >&2
+  exit 1
+fi

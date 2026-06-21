@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace Blackout's numbered interactive menus with a professional full-screen server administration TUI. The interface must support continuous status refresh, keyboard navigation, contextual information, safe confirmations, and reliable operation with or without Gum.
+Replace Blackout's numbered interactive menus with a professional full-screen server administration TUI. The interface must support manual status refresh, keyboard navigation, contextual information, safe confirmations, and reliable operation with or without Gum.
 
 The existing non-interactive commands and their output contracts remain unchanged.
 
@@ -23,7 +23,7 @@ Pure Bash owns the alternate-screen event loop and renderer in every environment
 
 The renderer reads terminal dimensions before every frame. Wide terminals use dashboard cards and a split main/context view. Narrow terminals use a single-column layout. Below the safe minimum dimensions, the screen displays a resize message and waits without drawing overlapping content.
 
-Tests can override dimensions, refresh timing, Gum availability, and the key input source.
+Tests can override dimensions, input timing, Gum availability, and the key input source.
 
 ## Interaction Model
 
@@ -45,7 +45,7 @@ Global keys:
 - `q`: quit from any screen.
 - `?`: show contextual help.
 
-The dashboard and active view refresh every two seconds. Refresh preserves the current screen and clamps the selection to the available row count. Input polling uses a timeout so key handling remains responsive between refreshes.
+The dashboard and active view refresh when the operator presses `r`. Refresh preserves the current screen and clamps the selection to the available row count. The menu does not refresh status or view data on an automatic timer.
 
 Legacy number keys may continue to map to actions internally for compatibility, but numbered choices are not rendered.
 
@@ -113,7 +113,7 @@ Tests will cover:
 
 - alternate-screen entry and terminal restoration;
 - arrow, `j`/`k`, Enter, back, quit, refresh, and help keys;
-- two-second auto-refresh without selection loss;
+- manual refresh without selection loss;
 - wide, compact, and below-minimum layouts;
 - dashboard cards, breadcrumbs, contextual details, and shortcut footer;
 - command dispatch from every screen;

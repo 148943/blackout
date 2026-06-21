@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace Blackout's numbered menu with a full-screen, automatically refreshing administration TUI that uses Gum when available and a complete Bash fallback otherwise.
+**Goal:** Replace Blackout's numbered menu with a full-screen administration TUI that uses manual refresh, Gum when available, and a complete Bash fallback otherwise.
 
 **Architecture:** A new `lib/tui.sh` module owns terminal control, rendering primitives, input, prompts, confirmations, and operation execution. `lib/menu.sh` defines screen state and delegates actions to the existing command modules, preserving all direct CLI behavior.
 
@@ -71,7 +71,7 @@ Run: `bash tests/test_tui.sh`
 
 Expected: PASS.
 
-### Task 2: Dashboard, Navigation, And Auto Refresh
+### Task 2: Dashboard, Navigation, And Manual Refresh
 
 **Files:**
 - Modify: `lib/menu.sh`
@@ -98,7 +98,7 @@ Help
 Quit
 ```
 
-Assert two timeout events cause status refresh without changing `BO_MENU_SELECTION`. Assert Enter dispatches the highlighted section and `b` returns to the dashboard. Assert non-TTY invocation fails unless `BLACKOUT_TUI_TEST=1`.
+Assert timeout events do not refresh status, and pressing `r` refreshes without changing `BO_MENU_SELECTION`. Assert Enter dispatches the highlighted section and `b` returns to the dashboard. Assert non-TTY invocation fails unless `BLACKOUT_TUI_TEST=1`.
 
 - [ ] **Step 2: Run menu tests and verify RED**
 
@@ -113,7 +113,7 @@ Replace nested numbered loops with:
 ```bash
 BO_MENU_SCREEN=dashboard
 BO_MENU_SELECTION=0
-BO_MENU_REFRESH_SECONDS="${BLACKOUT_TUI_REFRESH_SECONDS:-2}"
+BO_MENU_KEY_TIMEOUT="${BLACKOUT_TUI_KEY_TIMEOUT:-86400}"
 
 bo_menu_collect_status
 bo_menu_render
@@ -123,7 +123,7 @@ bo_menu_back
 bo_menu
 ```
 
-The status collector calls structured helpers where available and degrades individual card values to `unknown` instead of aborting the frame. The loop redraws on keys, every two seconds, and `WINCH`; refresh preserves and clamps selection.
+The status collector calls structured helpers where available and degrades individual card values to `unknown` instead of aborting the frame. The loop redraws on keys and `WINCH`; pressing `r` refreshes, preserves, and clamps selection.
 
 - [ ] **Step 4: Run menu tests and verify GREEN**
 
@@ -174,7 +174,7 @@ bo_menu_activate SCREEN INDEX
 bo_menu_confirm_action LABEL COMMAND [ARGS...]
 ```
 
-Read user/profile rows from existing SQLite/config helpers. Keep expensive online sampling out of the two-second dashboard path; cache it and refresh it asynchronously or on explicit Users refresh. Route interactive values through `bo_tui_input`, and all long-running actions through `bo_tui_run`.
+Read user/profile rows from existing SQLite/config helpers. Keep expensive online sampling out of the dashboard render path; cache it and refresh it asynchronously or on explicit Users refresh. Route interactive values through `bo_tui_input`, and all long-running actions through `bo_tui_run`.
 
 - [ ] **Step 4: Run menu and direct-command tests**
 
@@ -234,7 +234,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Document the TUI and fallback**
 
-Describe `blackout` as a full-screen dashboard, list global keyboard shortcuts, document two-second refresh, explain Gum installation and Bash fallback, and add recovery guidance for terminals after forced disconnection (`reset` or `stty sane`). Keep direct command examples unchanged.
+Describe `blackout` as a full-screen dashboard, list global keyboard shortcuts, document manual refresh, explain Gum installation and Bash fallback, and add recovery guidance for terminals after forced disconnection (`reset` or `stty sane`). Keep direct command examples unchanged.
 
 - [ ] **Step 2: Run syntax and full regression verification**
 

@@ -52,7 +52,7 @@ Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domain
 
 ## Administration TUI
 
-Run `blackout` to open the full-screen administration dashboard. It shows stack health, users, the active profile, certificate/API state, and update context. Status refreshes every two seconds.
+Run `blackout` to open the full-screen administration dashboard. It shows stack health, users, the active profile, certificate/API state, and update context. Press `r` to refresh the current status and view data.
 
 ```text
 ↑/↓ or j/k  Navigate

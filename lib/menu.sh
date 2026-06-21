@@ -11,7 +11,7 @@ BO_MENU_SHOW_HELP=0
 BO_MENU_RUNNING=0
 BO_MENU_STATUS=""
 BO_MENU_RESULT=""
-BO_MENU_REFRESH_SECONDS="${BLACKOUT_TUI_REFRESH_SECONDS:-2}"
+BO_MENU_KEY_TIMEOUT="${BLACKOUT_TUI_KEY_TIMEOUT:-86400}"
 BO_MENU_USERS=""
 BO_MENU_PROFILES=""
 BO_MENU_ONLINE_USERS="${BO_MENU_ONLINE_USERS:-}"
@@ -641,11 +641,9 @@ bo_menu() {
   bo_menu_init
   while [ "$BO_MENU_RUNNING" = 1 ]; do
     bo_menu_render
-    if raw="$(bo_tui_read_key "$BO_MENU_REFRESH_SECONDS")"; then
+    if raw="$(bo_tui_read_key "$BO_MENU_KEY_TIMEOUT")"; then
       key="$(bo_tui_decode_key "$raw")"
       bo_menu_handle_key "$key"
-    else
-      bo_menu_tick
     fi
   done
   bo_menu_online_stop
