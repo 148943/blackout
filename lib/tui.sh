@@ -37,6 +37,18 @@ bo_tui_leave() {
   BO_TUI_ACTIVE=0
 }
 
+bo_tui_prompt_begin() {
+  if [ "${BLACKOUT_TUI_TEST:-0}" != 1 ] && [ "$BO_TUI_ACTIVE" = 1 ] && [ -n "$BO_TUI_STTY" ]; then
+    stty "$BO_TUI_STTY" </dev/tty 2>/dev/null || true
+  fi
+}
+
+bo_tui_prompt_end() {
+  if [ "${BLACKOUT_TUI_TEST:-0}" != 1 ] && [ "$BO_TUI_ACTIVE" = 1 ]; then
+    stty -echo -icanon time 0 min 0 </dev/tty 2>/dev/null || true
+  fi
+}
+
 bo_tui_dimensions() {
   local dimensions
   if [ -n "${BLACKOUT_TUI_ROWS:-}" ] && [ -n "${BLACKOUT_TUI_COLS:-}" ]; then
@@ -189,14 +201,16 @@ bo_tui_footer() {
 }
 
 bo_tui_input() {
-  local label="$1" default="${2:-}" value
+  local label="$1" default="${2:-}" value status=0
   if [ -n "${BLACKOUT_TUI_INPUT_VALUE+x}" ]; then
     printf '%s\n' "$BLACKOUT_TUI_INPUT_VALUE"
     return
   fi
   if bo_tui_has_gum; then
-    gum input --prompt "$label: " --value "$default"
-    return
+    bo_tui_prompt_begin
+    gum input --prompt "$label: " --value "$default" || status=$?
+    bo_tui_prompt_end
+    return "$status"
   fi
   if [ "${BLACKOUT_TUI_TEST:-0}" = 1 ]; then
     printf '%s\n' "$default"
@@ -209,14 +223,16 @@ bo_tui_input() {
 }
 
 bo_tui_confirm() {
-  local message="$1" answer
+  local message="$1" answer status=0
   if [ -n "${BLACKOUT_TUI_CONFIRM+x}" ]; then
     [ "$BLACKOUT_TUI_CONFIRM" = yes ]
     return
   fi
   if bo_tui_has_gum; then
-    gum confirm --default=false "$message"
-    return
+    bo_tui_prompt_begin
+    gum confirm --default=false "$message" || status=$?
+    bo_tui_prompt_end
+    return "$status"
   fi
   if [ "${BLACKOUT_TUI_TEST:-0}" = 1 ]; then
     return 1
