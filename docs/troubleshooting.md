@@ -2,6 +2,20 @@
 
 Use this page for command-oriented checks on an installed Blackout host. These commands do not prove DNS or provider firewall state by themselves; check those in your VPS and DNS provider panels too.
 
+## TUI Or Terminal Problems
+
+The administration TUI requires interactive stdin and stdout. Use direct commands rather than `blackout menu` from cron, pipes, or automation.
+
+If an SSH disconnection leaves the terminal without echo or a visible cursor, restore it with:
+
+```bash
+reset
+stty sane
+printf '\033[?25h\033[?1049l'
+```
+
+The installer normally provides Gum. Confirm availability with `command -v gum`. Missing Gum is not fatal; Blackout automatically uses its Bash input, confirmation, and spinner implementations.
+
 ## Basic Status
 
 ```bash

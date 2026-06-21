@@ -53,7 +53,32 @@ bo_install_check_debian12() {
 
 bo_install_apt_packages() {
   bo_install_run apt-get update
-  bo_install_run apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime python3
+  bo_install_run apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime python3 gnupg
+}
+
+bo_install_gum() {
+  command -v gum >/dev/null 2>&1 && return 0
+  local keyring="${BLACKOUT_CHARM_KEYRING:-/etc/apt/keyrings/charm.gpg}"
+  local source="${BLACKOUT_CHARM_SOURCE:-/etc/apt/sources.list.d/charm.list}"
+  local tmp key source_file
+  tmp="$(mktemp -d)" || {
+    bo_warn "unable to install gum; using pure Bash TUI fallback"
+    return 0
+  }
+  key="$tmp/charm.key"
+  source_file="$tmp/charm.list"
+  printf 'deb [signed-by=%s] https://repo.charm.sh/apt/ * *\n' "$keyring" >"$source_file"
+  if ! bo_install_run mkdir -p "$(dirname "$keyring")" "$(dirname "$source")" \
+    || ! bo_install_run curl -fsSL https://repo.charm.sh/apt/gpg.key -o "$key" \
+    || ! bo_install_run gpg --dearmor --yes --output "$keyring" "$key" \
+    || ! bo_install_run install -m 0644 "$source_file" "$source" \
+    || ! bo_install_run apt-get update \
+    || ! bo_install_run apt-get install -y gum; then
+    rm -rf "$tmp"
+    bo_warn "unable to install gum; using pure Bash TUI fallback"
+    return 0
+  fi
+  rm -rf "$tmp"
 }
 
 bo_install_copy_tree() {
@@ -223,6 +248,7 @@ bo_install_main() {
   bo_install_need_root
   bo_install_check_debian12
   bo_install_apt_packages
+  bo_install_gum
   if [ "${BLACKOUT_REINSTALL:-0}" = "1" ] && systemctl is-enabled -q "$api_service_name" 2>/dev/null; then
     api_was_enabled=1
   fi

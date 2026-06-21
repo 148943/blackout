@@ -13,11 +13,22 @@ blackout --help
 blackout -h
 ```
 
-- `blackout` or `blackout menu`: opens the interactive control panel menu.
+- `blackout` or `blackout menu`: opens the full-screen administration TUI.
 - `blackout status`: checks whether the Blackout stack is usable end to end.
 - `blackout help`, `blackout --help`, `blackout -h`: prints command usage.
 
-The interactive menu includes Status, Users, Xray, Certificates, Config, API, and Update check.
+The TUI includes a live dashboard and views for Status, Users, Xray, Certificates, Config, API, and updates. It refreshes every two seconds without moving the current selection.
+
+Global keys:
+
+- Up/Down arrows or `k`/`j`: navigate.
+- Enter: select the highlighted row or action.
+- `r`: refresh immediately.
+- `b`, Backspace, or Escape: return to the previous view.
+- `?`: show contextual keyboard help.
+- `q`: exit.
+
+Blackout uses Gum for enhanced inputs, confirmations, and operation spinners when available. The full interface remains usable through its pure Bash fallback.
 
 `blackout status` checks systemd state and real usability signals: Xray service, Xray API, Nginx service, `nginx -t`, SQLite schema access, active config profile files, and the optional HTTP user API endpoint when it is enabled.
 

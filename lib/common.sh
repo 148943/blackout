@@ -16,10 +16,17 @@ fi
 bo_color() {
   case "${NO_COLOR:-0}:$1" in
     1:*) printf '' ;;
+    *:bold) printf '\033[1m' ;;
+    *:dim) printf '\033[2m' ;;
     *:green) printf '\033[32m' ;;
     *:cyan) printf '\033[36m' ;;
     *:red) printf '\033[31m' ;;
     *:yellow) printf '\033[33m' ;;
+    *:blue) printf '\033[34m' ;;
+    *:magenta) printf '\033[35m' ;;
+    *:white) printf '\033[37m' ;;
+    *:gray) printf '\033[90m' ;;
+    *:selected) printf '\033[30;46m' ;;
     *:reset) printf '\033[0m' ;;
   esac
 }

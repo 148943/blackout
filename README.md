@@ -24,7 +24,7 @@ More documentation:
 - `git` access to `https://github.com/148943/blackout.git`.
 - For wildcard domains such as `*.new.example.com`, a Cloudflare API token with zone read and DNS edit permissions.
 
-Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, `uuid-runtime`, and `python3`.
+Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, `uuid-runtime`, `python3`, `gnupg`, and [Gum](https://github.com/charmbracelet/gum). Gum is installed from Charm's signed Debian repository. If Gum cannot be installed, Blackout keeps a complete pure Bash TUI fallback.
 
 ## Fresh Debian 12 VPS Install
 
@@ -49,6 +49,21 @@ blackout user link USERNAME
 The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, enables Xray and Nginx, and prints `blackout status` at the end. The local `blackout-api` service is installed but disabled by default.
 
 Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domains use Cloudflare DNS validation and automatically request both the base domain and wildcard name, for example `new.example.com` and `*.new.example.com`.
+
+## Administration TUI
+
+Run `blackout` to open the full-screen administration dashboard. It shows stack health, users, the active profile, certificate/API state, and update context. Status refreshes every two seconds.
+
+```text
+↑/↓ or j/k  Navigate
+Enter       Select
+r           Refresh immediately
+b or Esc    Back
+?           Contextual help
+q           Quit
+```
+
+Operations that can remove access, replace configuration, rotate credentials, or disrupt connectivity require confirmation. Long-running commands show a spinner and retain their output in a result panel.
 
 ## First User
 

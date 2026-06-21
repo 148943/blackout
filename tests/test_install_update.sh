@@ -231,7 +231,33 @@ dry_log="$tmp/install-dry.log"
 export BLACKOUT_DRY_RUN_LOG="$dry_log"
 bo_install_apt_packages
 grep -q 'apt-get update' "$dry_log"
-grep -q 'apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime python3' "$dry_log"
+grep -q 'apt-get install -y curl unzip jq sqlite3 nginx socat cron ca-certificates git uuid-runtime python3 gnupg' "$dry_log"
+
+export BLACKOUT_CHARM_KEYRING="$tmp/etc/apt/keyrings/charm.gpg"
+export BLACKOUT_CHARM_SOURCE="$tmp/etc/apt/sources.list.d/charm.list"
+: >"$dry_log"
+bo_install_gum
+grep -q 'curl -fsSL https://repo.charm.sh/apt/gpg.key -o ' "$dry_log"
+grep -q "gpg --dearmor --yes --output $BLACKOUT_CHARM_KEYRING" "$dry_log"
+grep -q "install -m 0644 .* $BLACKOUT_CHARM_SOURCE" "$dry_log"
+grep -q 'apt-get update' "$dry_log"
+grep -q 'apt-get install -y gum' "$dry_log"
+
+printf '#!/usr/bin/env bash\n' >"$bin/gum"
+chmod +x "$bin/gum"
+: >"$dry_log"
+bo_install_gum
+[ ! -s "$dry_log" ]
+rm -f "$bin/gum"
+
+original_bo_install_run="$(declare -f bo_install_run)"
+bo_install_run() { return 1; }
+if ! bo_install_gum 2>"$tmp/gum-warning"; then
+  echo 'gum installation failure aborted installer' >&2
+  exit 1
+fi
+grep -q 'unable to install gum; using pure Bash TUI fallback' "$tmp/gum-warning"
+eval "$original_bo_install_run"
 
 repo_install="$tmp/repo-install"
 mkdir -p "$repo_install"
@@ -391,6 +417,7 @@ grep -q '\*/5 \* \* \* \* root '"$bin_path"' user expire >>/var/log/blackout-exp
 install_main_log="$tmp/install-main.log"
 bo_install_check_debian12() { printf 'check_debian12\n' >>"$install_main_log"; }
 bo_install_apt_packages() { printf 'apt_packages\n' >>"$install_main_log"; }
+bo_install_gum() { printf 'gum_install\n' >>"$install_main_log"; }
 bo_install_prompt() {
   printf -v "$1" '%s' 'api.example.com'
   printf -v "$2" '%s' 'admin@example.com'
@@ -445,6 +472,7 @@ export BLACKOUT_API_TOKEN="main-token"
 
 bo_install_main
 
+awk '/apt_packages/ { apt=NR } /gum_install/ { gum=NR } END { exit !(apt && gum && apt < gum) }' "$install_main_log"
 grep -q 'systemctl daemon-reload' "$install_main_log"
 grep -q 'systemctl enable --now xray nginx' "$install_main_log"
 grep -q 'systemctl disable --now blackout-api' "$install_main_log"
