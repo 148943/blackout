@@ -208,6 +208,40 @@ export BLACKOUT_DRY_RUN=1
 export BLACKOUT_ROOT_DIR="$ROOT_DIR"
 . "$ROOT_DIR/install.sh"
 
+menu_test_bin="$tmp/menu-alias/bin/blackout"
+menu_test_path="$tmp/menu-alias/bin/menu"
+mkdir -p "$(dirname "$menu_test_bin")"
+printf '#!/usr/bin/env bash\n' >"$menu_test_bin"
+chmod +x "$menu_test_bin"
+BLACKOUT_BIN_PATH="$menu_test_bin" BLACKOUT_MENU_BIN_PATH="$menu_test_path" bo_install_menu_alias
+[ -L "$menu_test_path" ]
+[ "$(readlink "$menu_test_path")" = "$menu_test_bin" ]
+
+owned_menu_path="$tmp/menu-alias/owned/menu"
+mkdir -p "$(dirname "$owned_menu_path")"
+ln -s "$menu_test_bin" "$owned_menu_path"
+bo_install_menu_alias "$menu_test_bin" "$owned_menu_path"
+bo_install_menu_alias "$menu_test_bin" "$owned_menu_path"
+[ -L "$owned_menu_path" ]
+[ "$(readlink "$owned_menu_path")" = "$menu_test_bin" ]
+
+unrelated_target="$tmp/menu-alias/bin/unrelated"
+unrelated_menu_path="$tmp/menu-alias/unrelated-link/menu"
+mkdir -p "$(dirname "$unrelated_menu_path")"
+ln -s "$unrelated_target" "$unrelated_menu_path"
+menu_warning="$(bo_install_menu_alias "$menu_test_bin" "$unrelated_menu_path" 2>&1)"
+[ -L "$unrelated_menu_path" ]
+[ "$(readlink "$unrelated_menu_path")" = "$unrelated_target" ]
+grep -q 'not installing menu alias' <<<"$menu_warning"
+
+regular_menu_path="$tmp/menu-alias/regular-file/menu"
+mkdir -p "$(dirname "$regular_menu_path")"
+printf 'preserve me\n' >"$regular_menu_path"
+menu_warning="$(bo_install_menu_alias "$menu_test_bin" "$regular_menu_path" 2>&1)"
+[ ! -L "$regular_menu_path" ]
+[ "$(cat "$regular_menu_path")" = "preserve me" ]
+grep -q 'not installing menu alias' <<<"$menu_warning"
+
 prompt_input="$tmp/prompt-input"
 printf 'vpn.example\nadmin@example.com\n' >"$prompt_input"
 bo_test_prompt_locals() {
@@ -453,6 +487,7 @@ systemctl() { printf 'systemctl %s\n' "$*" >>"$install_main_log"; }
 
 main_install_dir="$tmp/main/opt/blackout"
 main_bin="$tmp/main/usr/local/bin/blackout"
+main_menu_bin="$tmp/main/usr/local/bin/menu"
 main_env="$tmp/main/etc/blackout/blackout.env"
 main_xray="$tmp/main/etc/xray/config.json"
 main_xray_service="$tmp/main/etc/systemd/system/xray.service"
@@ -464,6 +499,7 @@ export BLACKOUT_ETC_DIR="$tmp/main/etc/blackout"
 export BLACKOUT_STATE_DIR="$tmp/main/var/lib/blackout"
 export BLACKOUT_DB="$tmp/main/var/lib/blackout/blackout.db"
 export BLACKOUT_BIN_PATH="$main_bin"
+export BLACKOUT_MENU_BIN_PATH="$main_menu_bin"
 export BLACKOUT_ENV="$main_env"
 export BLACKOUT_XRAY_CONFIG="$main_xray"
 export BLACKOUT_XRAY_SERVICE_PATH="$main_xray_service"
@@ -472,6 +508,8 @@ export BLACKOUT_API_TOKEN="main-token"
 
 bo_install_main
 
+[ -L "$main_menu_bin" ]
+[ "$(readlink "$main_menu_bin")" = "$main_bin" ]
 awk '/apt_packages/ { apt=NR } /gum_install/ { gum=NR } END { exit !(apt && gum && apt < gum) }' "$install_main_log"
 grep -q 'systemctl daemon-reload' "$install_main_log"
 grep -q 'systemctl enable --now xray nginx' "$install_main_log"

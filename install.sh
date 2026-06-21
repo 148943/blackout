@@ -99,6 +99,25 @@ bo_install_copy_tree() {
   cp -a "$src/api" "$install_dir/api"
 }
 
+bo_install_menu_alias() {
+  local bin_path="${1:-${BLACKOUT_BIN_PATH:-/usr/local/bin/blackout}}"
+  local menu_path="${2:-${BLACKOUT_MENU_BIN_PATH:-/usr/local/bin/menu}}"
+
+  if [ -L "$menu_path" ]; then
+    if [ "$(readlink "$menu_path")" != "$bin_path" ]; then
+      bo_warn "path already exists; not installing menu alias: $menu_path"
+      return 0
+    fi
+  elif [ -e "$menu_path" ]; then
+    bo_warn "path already exists; not installing menu alias: $menu_path"
+    return 0
+  fi
+
+  if ! mkdir -p "$(dirname "$menu_path")" || ! ln -sfn "$bin_path" "$menu_path"; then
+    bo_warn "unable to install menu alias at $menu_path; you can use blackout menu instead"
+  fi
+}
+
 bo_install_expire_cron() {
   local cron_file="${BLACKOUT_EXPIRE_CRON:-/etc/cron.d/blackout-expire}" bin_path="${BLACKOUT_BIN_PATH:-/usr/local/bin/blackout}"
   mkdir -p "$(dirname "$cron_file")"
@@ -255,6 +274,7 @@ bo_install_main() {
 
   mkdir -p "$install_dir" "$etc_dir/ssl" "$state_dir" "$(dirname "$xray_config")"
   bo_install_copy_tree "$ROOT_DIR" "$install_dir" "$bin_path"
+  bo_install_menu_alias "$bin_path" "${BLACKOUT_MENU_BIN_PATH:-/usr/local/bin/menu}"
   bo_db_init
   domain="${BLACKOUT_DOMAIN:-$(bo_setting_get domain 2>/dev/null || true)}"
   email="${BLACKOUT_ACME_EMAIL:-$(bo_setting_get acme_email 2>/dev/null || true)}"
