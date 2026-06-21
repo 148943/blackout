@@ -157,16 +157,16 @@ grep -q '"error": "/var/log/xray/error.log"' "$BLACKOUT_XRAY_CONFIG"
 grep -q '"loglevel": "warning"' "$BLACKOUT_XRAY_CONFIG"
 grep -q 'location ^~ /xhttp' "$tmp/etc/nginx/sites-available/blackout"
 grep -q 'proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
-grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'location = /ws' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'proxy_pass http://unix:/dev/shm/blackout-vless.sock:/ws' "$tmp/etc/nginx/sites-available/blackout"
 python3 - "$tmp/etc/nginx/sites-available/blackout" <<'PY'
 import sys
 
 nginx = open(sys.argv[1], encoding="utf-8").read()
 first_server = nginx.split("\nserver {", 1)[0]
 required = [
-    "location = /vless",
-    "proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless",
+    "location = /ws",
+    "proxy_pass http://unix:/dev/shm/blackout-vless.sock:/ws",
     "proxy_set_header X-Forwarded-Proto http;",
     "location ^~ /xhttp",
     "proxy_pass http://unix:/dev/shm/blackout-xhttp.sock:/xhttp",
@@ -195,13 +195,13 @@ if ( bo_config_cmd ws-path /stealth ) >/dev/null 2>&1; then
   echo "ws-path command accepted even though paths are profile-managed" >&2
   exit 1
 fi
-grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
-grep -q '"path": "/vless"' "$BLACKOUT_XRAY_CONFIG"
+grep -q 'location = /ws' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/ws"' "$BLACKOUT_XRAY_CONFIG"
 
 bo_config_cmd reload
 [ "$(bo_setting_get profile)" = "default" ]
-grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
-grep -q '"path": "/vless"' "$BLACKOUT_XRAY_CONFIG"
+grep -q 'location = /ws' "$tmp/etc/nginx/sites-available/blackout"
+grep -q '"path": "/ws"' "$BLACKOUT_XRAY_CONFIG"
 
 sqlite3 "$BLACKOUT_DB" "DELETE FROM settings WHERE key = 'xray_api_port';"
 export BLACKOUT_XRAY_API_PORT=61001
@@ -309,7 +309,7 @@ bo_cert_cmd change-domain '*.change.example.com'
 grep -q 'acme.sh --issue --dns dns_cf -d change.example.com -d \*.change.example.com' "$BLACKOUT_TEST_LOG"
 grep -q 'curl .*zones?name=change.example.com' "$BLACKOUT_TEST_LOG"
 grep -q 'curl .*zones?name=example.com' "$BLACKOUT_TEST_LOG"
-grep -q 'location = /vless' "$tmp/etc/nginx/sites-available/blackout"
+grep -q 'location = /ws' "$tmp/etc/nginx/sites-available/blackout"
 unset BLACKOUT_CF_TOKEN
 bo_setting_set domain new.example.com
 

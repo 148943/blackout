@@ -42,10 +42,10 @@ For named links, use pairs of non-empty lines:
 
 ```text
 VLESS WS TLS
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/ws&host={{DOMAIN}}#{{USERNAME}}
 
 VLESS WS HTTP
-vless://{{UUID}}@{{DOMAIN}}:80?type=ws&security=none&path=/vless&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:80?type=ws&security=none&path=/ws&host={{DOMAIN}}#{{USERNAME}}
 
 VLESS XHTTP TLS
 vless://{{UUID}}@{{DOMAIN}}:443?type=xhttp&security=tls&path=/xhttp&host={{DOMAIN}}#{{USERNAME}}
@@ -62,7 +62,7 @@ The shipped profile is `default`.
 
 - Xray logs to `/var/log/xray/access.log` and `/var/log/xray/error.log` at `warning` level.
 - Xray listens on Unix sockets at `/dev/shm/blackout-vless.sock` and `/dev/shm/blackout-xhttp.sock`.
-- Nginx proxies WebSocket traffic on `/vless` and XHTTP traffic on `/xhttp` to the Xray sockets on both port `80` and TLS port `443`.
+- Nginx proxies WebSocket traffic on `/ws` and XHTTP traffic on `/xhttp` to the Xray sockets on both port `80` and TLS port `443`.
 - Other HTTP traffic on port `80` redirects to HTTPS, with an ACME challenge location present in the Nginx template.
 - The local Xray API listens on `127.0.0.1` using the configured API port, defaulting to `60001`.
 - Xray `HandlerService` and `StatsService` are enabled for runtime user management and stats.
@@ -109,7 +109,7 @@ Custom Nginx profile templates should include these placeholders inside the TLS 
 ssl_certificate {{SSL_CERT}};
 ssl_certificate_key {{SSL_KEY}};
 
-location = /vless {
+location = /ws {
     proxy_http_version 1.1;
     proxy_set_header Host {{DOMAIN}};
     proxy_set_header X-Real-IP $remote_addr;
@@ -117,7 +117,7 @@ location = /vless {
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
-    proxy_pass http://unix:/dev/shm/blackout-vless.sock:/vless;
+    proxy_pass http://unix:/dev/shm/blackout-vless.sock:/ws;
 }
 
 {{API_NGINX_BLOCK}}

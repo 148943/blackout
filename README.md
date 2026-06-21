@@ -66,7 +66,7 @@ Print the client link:
 blackout user link USERNAME
 ```
 
-The default links include TLS on port `443` and HTTP on port `80` for both WebSocket `/vless` and XHTTP `/xhttp`.
+The default links include TLS on port `443` and HTTP on port `80` for both WebSocket `/ws` and XHTTP `/xhttp`.
 
 ## Common Commands
 

@@ -1,8 +1,8 @@
 VLESS WS TLS
-vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/vless&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:443?type=ws&security=tls&path=/ws&host={{DOMAIN}}#{{USERNAME}}
 
 VLESS WS HTTP
-vless://{{UUID}}@{{DOMAIN}}:80?type=ws&security=none&path=/vless&host={{DOMAIN}}#{{USERNAME}}
+vless://{{UUID}}@{{DOMAIN}}:80?type=ws&security=none&path=/ws&host={{DOMAIN}}#{{USERNAME}}
 
 VLESS XHTTP TLS
 vless://{{UUID}}@{{DOMAIN}}:443?type=xhttp&security=tls&path=/xhttp&host={{DOMAIN}}#{{USERNAME}}

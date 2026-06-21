@@ -209,9 +209,9 @@ bo_setting_set profile default
 bo_setting_set domain '*.vpn.example'
 bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS WS TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=ws&security=tls&path=/ws&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS WS HTTP:' "$BLACKOUT_ETC_DIR/default-links.out"
-grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=ws&security=none&path=/vless&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
+grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:80?type=ws&security=none&path=/ws&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS XHTTP TLS:' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'vless://00000000-0000-0000-0000-000000000001@vpn.example:443?type=xhttp&security=tls&path=/xhttp&host=vpn.example#aiman' "$BLACKOUT_ETC_DIR/default-links.out"
 grep -qx 'VLESS XHTTP HTTP:' "$BLACKOUT_ETC_DIR/default-links.out"
