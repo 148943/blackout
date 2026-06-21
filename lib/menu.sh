@@ -613,6 +613,10 @@ bo_menu_handle_key() {
     case "$key" in back|help|enter) BO_MENU_SHOW_HELP=0 ;; quit) BO_MENU_RUNNING=0 ;; esac
     return
   fi
+  if [ -n "$BO_MENU_RESULT" ]; then
+    case "$key" in back|enter) BO_MENU_RESULT="" ;; quit) BO_MENU_RUNNING=0 ;; refresh) bo_menu_tick ;; esac
+    return
+  fi
   count="$(bo_menu_row_count)"
   case "$key" in
     up)

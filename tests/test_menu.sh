@@ -202,6 +202,15 @@ if grep -q 'Failed: API status' <<<"$BO_MENU_RESULT"; then
   echo 'api status rendered inactive service as failed action' >&2
   exit 1
 fi
+BLACKOUT_TUI_CONFIRM=yes
+bo_menu_handle_key up
+bo_menu_handle_key enter
+unset BLACKOUT_TUI_CONFIRM
+if grep -q '^api:disable$' "$events_file" || grep -q '^api:enable$' "$events_file"; then
+  echo 'api result panel allowed hidden enable/disable action' >&2
+  exit 1
+fi
+[ -z "$BO_MENU_RESULT" ]
 BO_MENU_SELECTION=1
 BLACKOUT_TUI_CONFIRM=no
 bo_menu_activate
