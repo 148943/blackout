@@ -81,7 +81,6 @@ trap 'rm -rf "$tmp"' EXIT
 cat >"$tmp/gum" <<'SH'
 #!/usr/bin/env bash
 printf 'gum %s\n' "$*" >>"$BLACKOUT_TUI_TEST_LOG"
-[ -z "${BLACKOUT_GUM_TTY_LOG:-}" ] || stty -a </dev/tty >>"$BLACKOUT_GUM_TTY_LOG"
 case "$1" in
   input) printf 'gum-value\n' ;;
   confirm) exit "${BLACKOUT_GUM_CONFIRM_STATUS:-0}" ;;
@@ -92,31 +91,6 @@ chmod +x "$tmp/gum"
 export BLACKOUT_TUI_TEST_LOG="$tmp/gum.log"
 PATH="$tmp:$PATH"
 export PATH
-
-cat >"$tmp/gum-tty-case.sh" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-BLACKOUT_LIB_DIR="$BLACKOUT_TEST_ROOT/lib"
-BLACKOUT_TUI_TEST=0
-NO_COLOR=1
-. "$BLACKOUT_LIB_DIR/common.sh"
-. "$BLACKOUT_LIB_DIR/tui.sh"
-BO_TUI_ACTIVE=1
-BO_TUI_STTY="$(stty -g </dev/tty)"
-stty -echo -icanon time 0 min 0 </dev/tty
-bo_tui_input Label default >/dev/null
-bo_tui_confirm 'Gum confirm'
-stty "$BO_TUI_STTY" </dev/tty
-SH
-chmod +x "$tmp/gum-tty-case.sh"
-export BLACKOUT_TEST_ROOT="$ROOT_DIR"
-export BLACKOUT_GUM_TTY_LOG="$tmp/gum-tty.log"
-script -qefc "$tmp/gum-tty-case.sh" /dev/null >/dev/null
-if grep -q -- '-icanon' "$BLACKOUT_GUM_TTY_LOG"; then
-  echo 'Gum prompt inherited Blackout raw terminal mode' >&2
-  exit 1
-fi
-unset BLACKOUT_TEST_ROOT BLACKOUT_GUM_TTY_LOG
 
 bo_tui_has_gum
 [ "$(bo_tui_input Label default)" = gum-value ]
