@@ -45,6 +45,11 @@ bo_tui_flush_input() {
   done
 }
 
+bo_tui_modal_clear() {
+  [ "$BO_TUI_ACTIVE" = 1 ] || return 0
+  [ "${BLACKOUT_TUI_TEST:-0}" = 1 ] || printf '\033[2J\033[H' >/dev/tty
+}
+
 bo_tui_dimensions() {
   local dimensions
   if [ -n "${BLACKOUT_TUI_ROWS:-}" ] && [ -n "${BLACKOUT_TUI_COLS:-}" ]; then
@@ -202,6 +207,7 @@ bo_tui_input() {
     printf '%s\n' "$BLACKOUT_TUI_INPUT_VALUE"
     return
   fi
+  bo_tui_modal_clear
   if bo_tui_has_gum; then
     gum input --prompt "$label: " --value "$default"
     return
@@ -222,6 +228,7 @@ bo_tui_confirm() {
     [ "$BLACKOUT_TUI_CONFIRM" = yes ]
     return
   fi
+  bo_tui_modal_clear
   if bo_tui_has_gum; then
     gum confirm --default=false "$message"
     return
@@ -239,6 +246,7 @@ bo_tui_run() {
   local title="$1" output status=0 frame index=0 pid tty_mode=""
   shift
   output="$(mktemp)" || return 1
+  bo_tui_modal_clear
   "$@" >"$output" 2>&1 &
   pid=$!
   if bo_tui_has_gum; then

@@ -153,16 +153,24 @@ if ! { sleep 0.02; printf '\n'; sleep 0.5; } | \
   exit 1
 fi
 grep -q '^stdin=notty$' "$BLACKOUT_GUM_PTY_LOG"
+grep -Fq $'\033[2J\033[H' "$tmp/pty-session.log"
 unset BLACKOUT_TEST_ROOT BLACKOUT_GUM_PTY_LOG
 
 bo_tui_has_gum
+modal_log="$tmp/modal.log"
+: >"$modal_log"
+original_modal_clear="$(declare -f bo_tui_modal_clear)"
+bo_tui_modal_clear() { printf 'clear\n' >>"$modal_log"; }
+BO_TUI_ACTIVE=1
 [ "$(bo_tui_input Label default)" = gum-value ]
 bo_tui_confirm 'Gum confirm'
+[ "$(wc -l <"$modal_log")" -eq 2 ]
 grep -q '^gum input ' "$BLACKOUT_TUI_TEST_LOG"
 grep -q '^gum confirm ' "$BLACKOUT_TUI_TEST_LOG"
 
 operation_output="$(bo_tui_run 'Test operation' sh -c 'printf done')"
 grep -q 'done' <<<"$operation_output"
+[ "$(wc -l <"$modal_log")" -eq 3 ]
 if grep -q 'spinner-frame' <<<"$operation_output"; then
   echo 'spinner output leaked into operation result' >&2
   exit 1
@@ -172,6 +180,18 @@ grep -q '^gum spin ' "$BLACKOUT_TUI_TEST_LOG"
 bo_test_shell_operation() { printf 'shell-function-output\n'; }
 operation_output="$(bo_tui_run 'Shell operation' bo_test_shell_operation)"
 grep -q 'shell-function-output' <<<"$operation_output"
+
+BLACKOUT_TUI_NO_GUM=1
+[ "$(bo_tui_input 'Fallback input' default)" = default ]
+if bo_tui_confirm 'Fallback confirm'; then
+  echo 'fallback confirmation accepted in test mode' >&2
+  exit 1
+fi
+bo_tui_run 'Fallback spinner' sh -c ':' >/dev/null
+unset BLACKOUT_TUI_NO_GUM
+[ "$(wc -l <"$modal_log")" -eq 7 ]
+BO_TUI_ACTIVE=0
+eval "$original_modal_clear"
 
 if bo_tui_run 'Failing operation' sh -c 'printf broken; exit 7' >"$tmp/failure.out"; then
   echo 'failed operation returned success' >&2
