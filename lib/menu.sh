@@ -108,6 +108,14 @@ bo_menu_status_value() {
   printf '%s\n' "${value:-unknown}"
 }
 
+bo_menu_api_action() {
+  if [ "$(bo_menu_status_value 'user api')" = disabled ]; then
+    printf 'Enable\n'
+  else
+    printf 'Disable\n'
+  fi
+}
+
 bo_menu_collect_status() {
   local output status=0
   output="$(mktemp)" || return 1
@@ -156,7 +164,7 @@ bo_menu_rows() {
       ;;
     config) bo_menu_rows_config ;;
     api)
-      printf '%s\n' Enable Disable Status 'New token'
+      printf '%s\n' "$(bo_menu_api_action)" Status 'New token'
       ;;
     update)
       printf '%s\n' 'Check for update' 'Install update'
@@ -583,9 +591,18 @@ bo_menu_activate_api() {
   row="$(bo_menu_selected_row)"
   bo_menu_load bo_api_control_cmd api.sh
   case "$row" in
-    Enable) bo_menu_run_action 'Enable API' bo_api_control_cmd enable || true ;;
-    Disable) bo_menu_confirm_action 'Disable API' bo_api_control_cmd disable || true ;;
-    Status) bo_menu_run_action 'API status' bo_menu_api_status || true ;;
+    Enable)
+      bo_menu_run_action 'Enable API' bo_api_control_cmd enable || true
+      bo_menu_collect_status || true
+      ;;
+    Disable)
+      bo_menu_confirm_action 'Disable API' bo_api_control_cmd disable || true
+      bo_menu_collect_status || true
+      ;;
+    Status)
+      bo_menu_run_action 'API status' bo_menu_api_status || true
+      bo_menu_collect_status || true
+      ;;
     'New token') bo_menu_confirm_action 'Rotate API token' bo_api_control_cmd token || true ;;
   esac
 }

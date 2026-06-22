@@ -15,8 +15,10 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 events_file="$tmp/events"
 user_status_file="$tmp/user-status"
+api_status_file="$tmp/api-status"
 : >"$events_file"
 printf 'active\n' >"$user_status_file"
+printf 'disabled\n' >"$api_status_file"
 
 . "$ROOT_DIR/lib/common.sh"
 . "$ROOT_DIR/lib/tui.sh"
@@ -29,7 +31,7 @@ bo_status_cmd() {
   printf 'nginx config: ok\n'
   printf 'database: ok\n'
   printf 'config profile: ok\n'
-  printf 'user api: disabled\n'
+  printf 'user api: %s\n' "$(cat "$api_status_file")"
   printf 'overall: usable\n'
 }
 bo_setting_get() {
@@ -66,6 +68,10 @@ bo_config_current() { printf 'default\n'; }
 bo_config_cmd() { printf 'config:%s\n' "$*" >>"$events_file"; }
 bo_api_control_cmd() {
   printf 'api:%s\n' "$*" >>"$events_file"
+  case "${1:-}" in
+    enable) printf 'ok\n' >"$api_status_file" ;;
+    disable) printf 'disabled\n' >"$api_status_file" ;;
+  esac
   if [ "${BLACKOUT_TEST_API_STATUS_INACTIVE:-0}" = 1 ] && [ "${1:-}" = status ]; then
     printf 'blackout-api.service inactive\n'
     return 3
@@ -225,8 +231,14 @@ bo_menu_activate
 grep -q '^config:switch custom$' "$events_file"
 
 bo_menu_open api
-grep -q 'disabled' <<<"$(bo_menu_render)"
-BO_MENU_SELECTION=2
+api_frame="$(bo_menu_render)"
+grep -q 'API state: disabled' <<<"$api_frame"
+grep -q 'Enable' <<<"$api_frame"
+if grep -q 'Disable' <<<"$api_frame"; then
+  echo 'api menu showed Disable while disabled' >&2
+  exit 1
+fi
+BO_MENU_SELECTION=1
 BLACKOUT_TEST_API_STATUS_INACTIVE=1
 bo_menu_activate
 unset BLACKOUT_TEST_API_STATUS_INACTIVE
@@ -246,7 +258,15 @@ if grep -q '^api:disable$' "$events_file" || grep -q '^api:enable$' "$events_fil
   exit 1
 fi
 [ -z "$BO_MENU_RESULT" ]
-BO_MENU_SELECTION=1
+
+BO_MENU_SELECTION=0
+bo_menu_activate
+grep -q '^api:enable$' "$events_file"
+[ "$(bo_menu_status_value 'user api')" = ok ]
+grep -qx 'Disable' <<<"$(bo_menu_rows | sed -n '1p')"
+
+BO_MENU_RESULT=""
+BO_MENU_SELECTION=0
 BLACKOUT_TUI_CONFIRM=no
 bo_menu_activate
 if grep -q '^api:disable$' "$events_file"; then
@@ -256,6 +276,8 @@ fi
 BLACKOUT_TUI_CONFIRM=yes
 bo_menu_activate
 grep -q '^api:disable$' "$events_file"
+[ "$(bo_menu_status_value 'user api')" = disabled ]
+grep -qx 'Enable' <<<"$(bo_menu_rows | sed -n '1p')"
 
 bo_menu_open update
 grep -q 'test-version' <<<"$(bo_menu_render)"
