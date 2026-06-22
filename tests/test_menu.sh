@@ -14,7 +14,9 @@ refresh_count=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 events_file="$tmp/events"
+user_status_file="$tmp/user-status"
 : >"$events_file"
+printf 'active\n' >"$user_status_file"
 
 . "$ROOT_DIR/lib/common.sh"
 . "$ROOT_DIR/lib/tui.sh"
@@ -40,10 +42,16 @@ bo_db_query() {
   printf '3\n'
 }
 bo_db_users_rows() {
-  printf 'aiman\tuuid-1\t0\tactive\t1700000000\t4102444800\t1700000000\n'
+  printf 'aiman\tuuid-1\t0\t%s\t1700000000\t4102444800\t1700000000\n' "$(cat "$user_status_file")"
   printf 'locked\tuuid-2\t0\tlocked\t1700000000\t4102444800\t1700000000\n'
 }
-bo_user_cmd() { printf 'user:%s\n' "$*" >>"$events_file"; }
+bo_user_cmd() {
+  printf 'user:%s\n' "$*" >>"$events_file"
+  case "$1" in
+    lock) printf 'locked\n' >"$user_status_file" ;;
+    unlock) printf 'active\n' >"$user_status_file" ;;
+  esac
+}
 bo_user_add() { printf 'user:add:%s:%s:%s\n' "$1" "$2" "$3" >>"$events_file"; }
 bo_user_generate_uuid() { printf 'generated-uuid\n'; }
 bo_expiry_epoch() { printf '4102444800\n'; }
@@ -178,6 +186,16 @@ BLACKOUT_TUI_CONFIRM=yes
 bo_menu_activate
 grep -q '^user:lock aiman$' "$events_file"
 grep -q 'Lock user aiman' <<<"$BO_MENU_RESULT"
+[ "$BO_MENU_SELECTED_USER_STATUS" = locked ]
+grep -qx 'Unlock' <<<"$(bo_menu_rows | sed -n '3p')"
+
+BO_MENU_RESULT=""
+BO_MENU_SELECTION=2
+bo_menu_activate
+grep -q '^user:unlock aiman$' "$events_file"
+grep -q 'Unlock user aiman' <<<"$BO_MENU_RESULT"
+[ "$BO_MENU_SELECTED_USER_STATUS" = active ]
+grep -qx 'Lock' <<<"$(bo_menu_rows | sed -n '3p')"
 
 bo_menu_open xray
 grep -q 'Xray 26.6.1' <<<"$(bo_menu_render)"

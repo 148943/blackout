@@ -467,6 +467,17 @@ bo_menu_user_from_selection() {
   BO_MENU_SELECTED_USER_STATUS="${row%%$'\t'*}"
 }
 
+bo_menu_refresh_selected_user() {
+  local username uuid level status created_at expires_at updated_at
+  bo_menu_collect_users
+  while IFS=$'\t' read -r username uuid level status created_at expires_at updated_at; do
+    if [ "$username" = "$BO_MENU_SELECTED_USER" ]; then
+      BO_MENU_SELECTED_USER_STATUS="$status"
+      return
+    fi
+  done <<<"$BO_MENU_USERS"
+}
+
 bo_menu_add_user() {
   local username duration uuid expires_at
   bo_menu_load bo_user_add users.sh
@@ -505,8 +516,14 @@ bo_menu_activate_user_detail() {
       duration="$(bo_tui_input 'New duration (12h, 7d, 1m)' 30d)" || return
       bo_menu_run_action "Modify $BO_MENU_SELECTED_USER" bo_user_modify_duration "$BO_MENU_SELECTED_USER" "$duration" || true
       ;;
-    Lock) bo_menu_confirm_action "Lock user $BO_MENU_SELECTED_USER" bo_user_cmd lock "$BO_MENU_SELECTED_USER" || true ;;
-    Unlock) bo_menu_run_action "Unlock user $BO_MENU_SELECTED_USER" bo_user_cmd unlock "$BO_MENU_SELECTED_USER" || true ;;
+    Lock)
+      bo_menu_confirm_action "Lock user $BO_MENU_SELECTED_USER" bo_user_cmd lock "$BO_MENU_SELECTED_USER" || true
+      bo_menu_refresh_selected_user
+      ;;
+    Unlock)
+      bo_menu_run_action "Unlock user $BO_MENU_SELECTED_USER" bo_user_cmd unlock "$BO_MENU_SELECTED_USER" || true
+      bo_menu_refresh_selected_user
+      ;;
     Remove) bo_menu_confirm_action "Remove user $BO_MENU_SELECTED_USER" bo_user_cmd remove "$BO_MENU_SELECTED_USER" || true ;;
   esac
 }
