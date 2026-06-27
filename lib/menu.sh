@@ -175,6 +175,7 @@ bo_menu_rows() {
 bo_menu_rows_users() {
   local username uuid level status created_at expires_at updated_at online
   printf 'Add user\n'
+  printf 'Remove expired\n'
   while IFS=$'\t' read -r username uuid level status created_at expires_at updated_at; do
     [ -n "$username" ] || continue
     online=offline
@@ -488,7 +489,7 @@ bo_menu_confirm_action() {
 
 bo_menu_user_from_selection() {
   local row
-  row="$(sed -n "${BO_MENU_SELECTION}p" <<<"$BO_MENU_USERS")"
+  row="$(sed -n "$((BO_MENU_SELECTION - 1))p" <<<"$BO_MENU_USERS")"
   BO_MENU_SELECTED_USER="${row%%$'\t'*}"
   row="${row#*$'\t'}"
   row="${row#*$'\t'}"
@@ -527,6 +528,12 @@ bo_menu_add_user() {
 bo_menu_activate_users() {
   if [ "$BO_MENU_SELECTION" -eq 0 ]; then
     bo_menu_add_user || true
+    bo_menu_collect_users
+    return
+  fi
+  if [ "$BO_MENU_SELECTION" -eq 1 ]; then
+    bo_menu_load bo_user_cmd users.sh
+    bo_menu_confirm_action 'Remove expired users' bo_user_cmd remove-expired || true
     bo_menu_collect_users
     return
   fi

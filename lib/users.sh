@@ -464,6 +464,16 @@ bo_user_expire() {
   done <<<"$usernames"
 }
 
+bo_user_remove_expired() {
+  local username usernames
+  usernames="$(bo_db_expired_usernames)" || return 1
+  while IFS= read -r username; do
+    [ -n "$username" ] || continue
+    bo_db_user_delete "$username" || return 1
+    printf '%s\n' "$username"
+  done <<<"$usernames"
+}
+
 bo_user_need_arg() {
   local name="$1" value="${2:-}"
   if [ -z "$value" ]; then
@@ -484,6 +494,7 @@ bo_user_cmd() {
     online) bo_user_online "$@" ;;
     link) bo_user_need_arg username "${1:-}" && bo_user_link "$1" ;;
     expire) bo_user_expire ;;
+    remove-expired) bo_user_remove_expired ;;
     *) bo_fail "unknown user command: ${cmd:-}" ;;
   esac
 }

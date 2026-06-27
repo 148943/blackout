@@ -107,6 +107,10 @@ bo_db_expired_active_usernames() {
   sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='active' AND expires_at <= $now ORDER BY username;"
 }
 
+bo_db_expired_usernames() {
+  sqlite3 "$BLACKOUT_DB" "SELECT username FROM users WHERE status='expired' ORDER BY username;"
+}
+
 bo_db_user_update() {
   local username="$1" expires_at="$2"
   bo_db_is_integer "$expires_at" || return 1

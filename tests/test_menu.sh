@@ -48,13 +48,16 @@ bo_db_query() {
 bo_db_users_rows() {
   printf 'aiman\tuuid-1\t0\t%s\t1700000000\t4102444800\t1700000000\n' "$(cat "$user_status_file")"
   printf 'locked\tuuid-2\t0\tlocked\t1700000000\t4102444800\t1700000000\n'
-  printf 'expired\tuuid-3\t0\t%s\t1700000000\t1700000001\t1700000000\n' "$(cat "$expired_status_file")"
+  if [ -s "$expired_status_file" ]; then
+    printf 'expired\tuuid-3\t0\t%s\t1700000000\t1700000001\t1700000000\n' "$(cat "$expired_status_file")"
+  fi
 }
 bo_user_cmd() {
   printf 'user:%s\n' "$*" >>"$events_file"
   case "$1" in
     lock) printf 'locked\n' >"$user_status_file" ;;
     unlock) printf 'active\n' >"$user_status_file" ;;
+    remove-expired) : >"$expired_status_file"; printf 'expired\n' ;;
   esac
 }
 bo_user_add() { printf 'user:add:%s:%s:%s\n' "$1" "$2" "$3" >>"$events_file"; }
@@ -190,6 +193,7 @@ if grep -Eq 'BLACKOUT.*test-version.*test-host' <<<"$users_frame" || grep -q '21
   exit 1
 fi
 grep -q 'Add user' <<<"$users_frame"
+grep -q 'Remove expired' <<<"$users_frame"
 grep -q 'aiman' <<<"$users_frame"
 grep -q 'active' <<<"$users_frame"
 grep -q 'online' <<<"$users_frame"
@@ -201,7 +205,7 @@ if grep -q '2100-01-01' <<<"$users_frame"; then
   exit 1
 fi
 
-BO_MENU_SELECTION=1
+BO_MENU_SELECTION=2
 bo_menu_activate
 [ "$BO_MENU_SCREEN" = user-detail ]
 [ "$BO_MENU_SELECTED_USER" = aiman ]
@@ -258,7 +262,7 @@ grep -qx 'Lock' <<<"$(bo_menu_rows | sed -n '3p')"
 BO_MENU_RESULT=""
 BO_MENU_SELECTION=3
 bo_menu_open users
-BO_MENU_SELECTION=3
+BO_MENU_SELECTION=4
 bo_menu_activate
 [ "$BO_MENU_SCREEN" = user-detail ]
 [ "$BO_MENU_SELECTED_USER" = expired ]
@@ -278,7 +282,7 @@ grep -qx 'Lock' <<<"$(bo_menu_rows | sed -n '3p')"
 
 BO_MENU_RESULT=""
 bo_menu_open users
-BO_MENU_SELECTION=1
+BO_MENU_SELECTION=2
 bo_menu_activate
 BO_MENU_RESULT=""
 BO_MENU_SELECTION=3
@@ -288,6 +292,22 @@ unset BLACKOUT_TUI_CONFIRM
 grep -q '^user:remove aiman$' "$events_file"
 [ "$BO_MENU_SCREEN" = users ]
 grep -q 'Add user' <<<"$(bo_menu_render)"
+
+BO_MENU_RESULT=""
+printf 'expired\n' >"$expired_status_file"
+bo_menu_open users
+BO_MENU_SELECTION=1
+BLACKOUT_TUI_CONFIRM=yes
+bo_menu_activate
+unset BLACKOUT_TUI_CONFIRM
+grep -q '^user:remove-expired$' "$events_file"
+grep -q 'Remove expired users' <<<"$BO_MENU_RESULT"
+bo_menu_back
+remove_expired_frame="$(bo_menu_render)"
+if grep -Eq 'expired[[:space:]]+expired' <<<"$remove_expired_frame"; then
+  echo 'expired user remained in users list after remove-expired' >&2
+  exit 1
+fi
 
 bo_menu_open xray
 grep -q 'Xray 26.6.1' <<<"$(bo_menu_render)"

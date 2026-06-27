@@ -364,6 +364,16 @@ bo_xray_api() {
 bo_db_user_insert expired 00000000-0000-0000-0000-000000000002 expired@example 0 active 100 101
 bo_user_expire | grep -qx expired
 bo_db_user_status expired | grep -qx expired
+bo_db_user_insert expired_two 00000000-0000-0000-0000-000000000014 expired_two@example 0 expired 100 101
+bo_user_remove_expired | sort | paste -sd, - | grep -qx 'expired,expired_two,stale,unlock_expired'
+[ -z "$(bo_db_user_status expired)" ]
+[ -z "$(bo_db_user_status expired_two)" ]
+[ -z "$(bo_db_user_status stale)" ]
+[ -z "$(bo_db_user_status unlock_expired)" ]
+bo_db_user_status aiman | grep -qx active
+bo_db_user_insert expired_cmd 00000000-0000-0000-0000-000000000015 expired_cmd@example 0 expired 100 101
+bo_user_cmd remove-expired | grep -qx expired_cmd
+[ -z "$(bo_db_user_status expired_cmd)" ]
 
 bo_xray_api() {
   return 1
