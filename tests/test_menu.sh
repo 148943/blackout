@@ -15,9 +15,11 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 events_file="$tmp/events"
 user_status_file="$tmp/user-status"
+expired_status_file="$tmp/expired-status"
 api_status_file="$tmp/api-status"
 : >"$events_file"
 printf 'active\n' >"$user_status_file"
+printf 'expired\n' >"$expired_status_file"
 printf 'disabled\n' >"$api_status_file"
 
 . "$ROOT_DIR/lib/common.sh"
@@ -46,6 +48,7 @@ bo_db_query() {
 bo_db_users_rows() {
   printf 'aiman\tuuid-1\t0\t%s\t1700000000\t4102444800\t1700000000\n' "$(cat "$user_status_file")"
   printf 'locked\tuuid-2\t0\tlocked\t1700000000\t4102444800\t1700000000\n'
+  printf 'expired\tuuid-3\t0\t%s\t1700000000\t1700000001\t1700000000\n' "$(cat "$expired_status_file")"
 }
 bo_user_cmd() {
   printf 'user:%s\n' "$*" >>"$events_file"
@@ -57,7 +60,10 @@ bo_user_cmd() {
 bo_user_add() { printf 'user:add:%s:%s:%s\n' "$1" "$2" "$3" >>"$events_file"; }
 bo_user_generate_uuid() { printf 'generated-uuid\n'; }
 bo_expiry_epoch() { printf '4102444800\n'; }
-bo_user_modify_duration() { printf 'user:modify:%s:%s\n' "$1" "$2" >>"$events_file"; }
+bo_user_modify_duration() {
+  printf 'user:modify:%s:%s\n' "$1" "$2" >>"$events_file"
+  [ "$1" != expired ] || printf 'active\n' >"$expired_status_file"
+}
 bo_xray_cmd() {
   printf 'xray:%s\n' "$*" >>"$events_file"
   [ "${1:-}" != current ] || printf 'Xray 26.6.1\n'
@@ -188,6 +194,7 @@ grep -q 'aiman' <<<"$users_frame"
 grep -q 'active' <<<"$users_frame"
 grep -q 'online' <<<"$users_frame"
 grep -q 'locked' <<<"$users_frame"
+grep -q 'expired' <<<"$users_frame"
 grep -q '1 Jan 2100' <<<"$users_frame"
 if grep -q '2100-01-01' <<<"$users_frame"; then
   echo 'user expiry rendered ISO date' >&2
@@ -248,6 +255,31 @@ grep -q 'Unlock user aiman' <<<"$BO_MENU_RESULT"
 [ "$BO_MENU_SELECTED_USER_STATUS" = active ]
 grep -qx 'Lock' <<<"$(bo_menu_rows | sed -n '3p')"
 
+BO_MENU_RESULT=""
+BO_MENU_SELECTION=3
+bo_menu_open users
+BO_MENU_SELECTION=3
+bo_menu_activate
+[ "$BO_MENU_SCREEN" = user-detail ]
+[ "$BO_MENU_SELECTED_USER" = expired ]
+[ "$BO_MENU_SELECTED_USER_STATUS" = expired ]
+expired_rows="$(bo_menu_rows)"
+grep -q 'Modify duration' <<<"$expired_rows"
+if grep -q '^Unlock$' <<<"$expired_rows"; then
+  echo 'expired user detail showed unlock action' >&2
+  exit 1
+fi
+grep -qx 'Remove' <<<"$(bo_menu_rows | sed -n '3p')"
+BO_MENU_SELECTION=1
+bo_menu_activate
+grep -q '^user:modify:expired:30d$' "$events_file"
+[ "$BO_MENU_SELECTED_USER_STATUS" = active ]
+grep -qx 'Lock' <<<"$(bo_menu_rows | sed -n '3p')"
+
+BO_MENU_RESULT=""
+bo_menu_open users
+BO_MENU_SELECTION=1
+bo_menu_activate
 BO_MENU_RESULT=""
 BO_MENU_SELECTION=3
 BLACKOUT_TUI_CONFIRM=yes

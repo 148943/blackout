@@ -238,18 +238,23 @@ bo_user_unlock() {
 }
 
 bo_user_modify_duration() {
-  local username="$1" duration="$2" expires_at row
+  local username="$1" duration="$2" expires_at row uuid email level status created_at current_expires_at updated_at
   bo_user_validate_username "$username" || return 1
   row="$(bo_db_user_get "$username")" || return 1
   if [ -z "$row" ]; then
     printf 'unknown user: %s\n' "$username" >&2
     return 1
   fi
+  IFS=$'\t' read -r username uuid email level status created_at current_expires_at updated_at <<<"$row"
   if ! expires_at="$(bo_expiry_epoch "$duration")"; then
     printf 'invalid duration: %s\n' "$duration" >&2
     return 1
   fi
-  bo_db_user_update "$username" "$expires_at"
+  bo_db_user_update "$username" "$expires_at" || return 1
+  if [ "$status" = expired ]; then
+    bo_xray_add_user "$username" "$uuid" "$level" || return 1
+    bo_db_user_set_status "$username" active || return 1
+  fi
 }
 
 bo_user_modify() {

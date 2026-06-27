@@ -205,6 +205,20 @@ if [ "$(printf '%s' "$bo_xray_events" | grep -c '^adu:')" != 4 ]; then
   exit 1
 fi
 
+bo_db_user_update aiman 101
+bo_db_user_set_status aiman expired
+bo_xray_events=""
+bo_user_modify_duration aiman 7d
+bo_db_user_status aiman | grep -qx active
+after_expired_modify="$(bo_db_user_get aiman | cut -f7)"
+now="$(date +%s)"
+[ "$after_expired_modify" -ge "$((now + 604790))" ]
+[ "$after_expired_modify" -le "$((now + 604810))" ]
+if [ "$(printf '%s' "$bo_xray_events" | grep -c '^adu:')" != 2 ]; then
+  echo "expired user was not re-added to all xray inbounds after duration modify" >&2
+  exit 1
+fi
+
 bo_setting_set profile default
 bo_setting_set domain '*.vpn.example'
 bo_user_link aiman >"$BLACKOUT_ETC_DIR/default-links.out"

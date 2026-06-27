@@ -151,7 +151,7 @@ bo_menu_rows() {
       printf '%s\n' Link 'Modify duration'
       if [ "$BO_MENU_SELECTED_USER_STATUS" = active ]; then
         printf 'Lock\n'
-      else
+      elif [ "$BO_MENU_SELECTED_USER_STATUS" = locked ]; then
         printf 'Unlock\n'
       fi
       printf 'Remove\n'
@@ -544,6 +544,7 @@ bo_menu_activate_user_detail() {
     'Modify duration')
       duration="$(bo_tui_input 'New duration (12h, 7d, 1m)' 30d)" || return
       bo_menu_run_action "Modify $BO_MENU_SELECTED_USER" bo_user_modify_duration "$BO_MENU_SELECTED_USER" "$duration" || true
+      bo_menu_refresh_selected_user
       ;;
     Lock)
       bo_menu_confirm_action "Lock user $BO_MENU_SELECTED_USER" bo_user_cmd lock "$BO_MENU_SELECTED_USER" || true
