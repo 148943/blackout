@@ -90,10 +90,15 @@ bo_update_check() {
 bo_menu_init
 frame="$(bo_menu_render)"
 [ "$(wc -l <<<"$frame")" -le "$BLACKOUT_TUI_ROWS" ]
-grep -q 'BLACKOUT' <<<"$frame"
-grep -q 'test-version' <<<"$frame"
-grep -q 'test-host' <<<"$frame"
 grep -q 'Blackout > Dashboard' <<<"$frame"
+if grep -Eq 'BLACKOUT.*test-version.*test-host' <<<"$frame" || grep -q '21 Jun 2026' <<<"$frame"; then
+  echo 'dashboard rendered header metadata' >&2
+  exit 1
+fi
+if grep -q '2026-06-21' <<<"$frame"; then
+  echo 'menu header rendered ISO date' >&2
+  exit 1
+fi
 for label in XRAY NGINX DATABASE CERTIFICATE API PROFILE USERS UPDATE; do
   grep -q "$label" <<<"$frame"
 done
@@ -109,6 +114,34 @@ compact_frame="$(BLACKOUT_TUI_ROWS=28 BLACKOUT_TUI_COLS=70 bo_menu_render)"
 [ "$(wc -l <<<"$compact_frame")" -le 28 ]
 grep -q 'XRAY' <<<"$compact_frame"
 grep -q 'UPDATE' <<<"$compact_frame"
+
+bo_update_repo() { printf 'https://example.invalid/blackout.git\n'; }
+bo_update_branch() { printf 'master\n'; }
+bo_update_remote_version() { printf '%s\n' "$BLACKOUT_TEST_REMOTE_VERSION"; }
+BLACKOUT_VERSION='b803562f475f9e4ea84699c2b5772462156ed03d'
+BLACKOUT_TEST_REMOTE_VERSION="$BLACKOUT_VERSION"
+update_summary="$(bo_menu_update_summary)"
+[ "$update_summary" = $'b803562f475f\tlatest' ]
+update_card="$(NO_COLOR=0 bo_tui_card UPDATE b803562f475 latest 24)"
+grep -Fq $'\033[32m' <<<"$update_card"
+BLACKOUT_TEST_REMOTE_VERSION='cf5f550795e1d25cff132368d6072b32da27ec05'
+update_summary="$(bo_menu_update_summary)"
+[ "$update_summary" = $'b803562f475f\twarning' ]
+BLACKOUT_VERSION='test-version'
+unset BLACKOUT_TEST_REMOTE_VERSION
+unset -f bo_update_repo bo_update_branch bo_update_remote_version
+
+certificate_file="$tmp/fullchain.pem"
+printf 'certificate\n' >"$certificate_file"
+openssl() {
+  case "$*" in
+    *-enddate*) printf 'notAfter=Jan 12 12:00:00 2026 GMT\n' ;;
+    *-checkend*) return 0 ;;
+  esac
+}
+certificate_summary="$(BLACKOUT_SSL_FULLCHAIN="$certificate_file" bo_menu_certificate_summary)"
+grep -q '^12 Jan 2026' <<<"$certificate_summary"
+unset -f openssl
 
 [ "$BO_MENU_SCREEN" = dashboard ]
 [ "$BO_MENU_SELECTION" = 0 ]
@@ -151,7 +184,11 @@ grep -q 'aiman' <<<"$users_frame"
 grep -q 'active' <<<"$users_frame"
 grep -q 'online' <<<"$users_frame"
 grep -q 'locked' <<<"$users_frame"
-grep -q '2100-01-01' <<<"$users_frame"
+grep -q '1 Jan 2100' <<<"$users_frame"
+if grep -q '2100-01-01' <<<"$users_frame"; then
+  echo 'user expiry rendered ISO date' >&2
+  exit 1
+fi
 
 BO_MENU_SELECTION=1
 bo_menu_activate

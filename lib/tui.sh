@@ -149,7 +149,11 @@ bo_tui_repeat() {
 bo_tui_header() {
   local breadcrumb="$1" host now
   host="${BLACKOUT_TUI_HOSTNAME:-$(hostname -s 2>/dev/null || printf server)}"
-  now="${BLACKOUT_TUI_NOW:-$(date '+%Y-%m-%d %H:%M:%S')}"
+  if [ -n "${BLACKOUT_TUI_NOW:-}" ]; then
+    now="$(LC_TIME=C date -d "$BLACKOUT_TUI_NOW" '+%-d %b %Y' 2>/dev/null || printf '%s' "$BLACKOUT_TUI_NOW")"
+  else
+    now="$(LC_TIME=C date '+%-d %b %Y')"
+  fi
   printf '%s%s BLACKOUT%s  v%s  %s  %s\n' \
     "$(bo_color bold)" "$(bo_color green)" "$(bo_color reset)" "$BLACKOUT_VERSION" "$host" "$now"
   printf '%s%s%s\n' "$(bo_color cyan)" "$breadcrumb" "$(bo_color reset)"

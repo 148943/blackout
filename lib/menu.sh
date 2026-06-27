@@ -99,7 +99,7 @@ bo_menu_is_online() {
 
 bo_menu_format_expiry() {
   local epoch="$1"
-  date -u -d "@$epoch" '+%Y-%m-%d %H:%M UTC' 2>/dev/null || printf '%s' "$epoch"
+  LC_TIME=C date -u -d "@$epoch" '+%-d %b %Y' 2>/dev/null || printf '%s' "$epoch"
 }
 
 bo_menu_status_value() {
@@ -218,6 +218,9 @@ bo_menu_certificate_summary() {
     return
   fi
   enddate="$(openssl x509 -in "$fullchain" -noout -enddate 2>/dev/null | cut -d= -f2- || true)"
+  if [ -n "$enddate" ]; then
+    enddate="$(LC_TIME=C date -u -d "$enddate" '+%-d %b %Y' 2>/dev/null || printf '%s' "$enddate")"
+  fi
   if ! openssl x509 -in "$fullchain" -noout -checkend 604800 >/dev/null 2>&1; then
     printf '%s\twarning\n' "${enddate:-expiring}"
   else
@@ -226,9 +229,21 @@ bo_menu_certificate_summary() {
 }
 
 bo_menu_update_summary() {
-  local version="${BLACKOUT_VERSION:-dev}"
+  local version="${BLACKOUT_VERSION:-dev}" repo branch remote
   if [ "$version" = dev ]; then
     printf 'dev\twarning\n'
+  elif declare -F bo_update_remote_version >/dev/null 2>&1 || [ -r "$BLACKOUT_LIB_DIR/update.sh" ]; then
+    bo_menu_load bo_update_remote_version update.sh
+    repo="$(bo_update_repo)"
+    branch="$(bo_update_branch)"
+    remote="$( ( bo_update_remote_version "$repo" "$branch" ) 2>/dev/null || true)"
+    if [ -z "$remote" ]; then
+      printf '%s\tunknown\n' "${version:0:12}"
+    elif [ "$version" = "$remote" ]; then
+      printf '%s\tlatest\n' "${version:0:12}"
+    else
+      printf '%s\twarning\n' "${version:0:12}"
+    fi
   else
     printf '%s\tunknown\n' "${version:0:12}"
   fi
@@ -368,9 +383,19 @@ bo_menu_render_help() {
 
 bo_menu_render_small() {
   printf '\033[2J\033[H'
-  bo_tui_header "Blackout > $(bo_menu_screen_title)"
+  bo_menu_render_title
   printf '\nTerminal too small (%sx%s). Resize to at least 56x18.\n' "$BO_TUI_COLS" "$BO_TUI_ROWS"
   bo_tui_footer 'r Refresh  q Quit'
+}
+
+bo_menu_render_title() {
+  local title
+  title="$(bo_menu_screen_title)"
+  if [ "$BO_MENU_SCREEN" = dashboard ]; then
+    printf '%sBlackout > %s%s\n' "$(bo_color cyan)" "$title" "$(bo_color reset)"
+  else
+    bo_tui_header "Blackout > $title"
+  fi
 }
 
 bo_menu_render() {
@@ -384,7 +409,7 @@ bo_menu_render() {
   title="$(bo_menu_screen_title)"
   selected="$(bo_menu_selected_row)"
   printf '\033[2J\033[H'
-  bo_tui_header "Blackout > $title"
+  bo_menu_render_title
   printf '\n'
   if [ "$BO_MENU_SCREEN" = dashboard ]; then
     bo_menu_render_cards "$mode"
