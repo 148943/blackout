@@ -240,6 +240,15 @@ grep -q 'Unlock user aiman' <<<"$BO_MENU_RESULT"
 [ "$BO_MENU_SELECTED_USER_STATUS" = active ]
 grep -qx 'Lock' <<<"$(bo_menu_rows | sed -n '3p')"
 
+BO_MENU_RESULT=""
+BO_MENU_SELECTION=3
+BLACKOUT_TUI_CONFIRM=yes
+bo_menu_activate
+unset BLACKOUT_TUI_CONFIRM
+grep -q '^user:remove aiman$' "$events_file"
+[ "$BO_MENU_SCREEN" = users ]
+grep -q 'Add user' <<<"$(bo_menu_render)"
+
 bo_menu_open xray
 grep -q 'Xray 26.6.1' <<<"$(bo_menu_render)"
 BO_MENU_SELECTION=0

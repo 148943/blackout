@@ -557,7 +557,10 @@ bo_menu_activate_user_detail() {
       bo_menu_run_action "Unlock user $BO_MENU_SELECTED_USER" bo_user_cmd unlock "$BO_MENU_SELECTED_USER" || true
       bo_menu_refresh_selected_user
       ;;
-    Remove) bo_menu_confirm_action "Remove user $BO_MENU_SELECTED_USER" bo_user_cmd remove "$BO_MENU_SELECTED_USER" || true ;;
+    Remove)
+      bo_menu_confirm_action "Remove user $BO_MENU_SELECTED_USER" bo_user_cmd remove "$BO_MENU_SELECTED_USER" || true
+      [ "${BO_MENU_RESULT#Completed:}" = "$BO_MENU_RESULT" ] || bo_menu_open users
+      ;;
   esac
 }
 
