@@ -391,11 +391,7 @@ bo_menu_render_small() {
 bo_menu_render_title() {
   local title
   title="$(bo_menu_screen_title)"
-  if [ "$BO_MENU_SCREEN" = dashboard ]; then
-    printf '%sBlackout > %s%s\n' "$(bo_color cyan)" "$title" "$(bo_color reset)"
-  else
-    bo_tui_header "Blackout > $title"
-  fi
+  printf '%sBlackout > %s%s\n' "$(bo_color cyan)" "$title" "$(bo_color reset)"
 }
 
 bo_menu_render() {

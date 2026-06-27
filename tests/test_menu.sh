@@ -179,6 +179,10 @@ fi
 BO_MENU_ONLINE_USERS=$'aiman\t12\t100'
 bo_menu_open users
 users_frame="$(bo_menu_render)"
+if grep -Eq 'BLACKOUT.*test-version.*test-host' <<<"$users_frame" || grep -q '21 Jun 2026' <<<"$users_frame"; then
+  echo 'users page rendered header metadata' >&2
+  exit 1
+fi
 grep -q 'Add user' <<<"$users_frame"
 grep -q 'aiman' <<<"$users_frame"
 grep -q 'active' <<<"$users_frame"
@@ -195,6 +199,10 @@ bo_menu_activate
 [ "$BO_MENU_SCREEN" = user-detail ]
 [ "$BO_MENU_SELECTED_USER" = aiman ]
 detail_frame="$(bo_menu_render)"
+if grep -Eq 'BLACKOUT.*test-version.*test-host' <<<"$detail_frame" || grep -q '21 Jun 2026' <<<"$detail_frame"; then
+  echo 'user detail page rendered header metadata' >&2
+  exit 1
+fi
 grep -q 'Blackout > Users > aiman' <<<"$detail_frame"
 grep -q 'Link' <<<"$detail_frame"
 grep -q 'Modify duration' <<<"$detail_frame"
