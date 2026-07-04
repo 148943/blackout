@@ -176,6 +176,7 @@ bo_menu_rows_users() {
   local username uuid level status created_at expires_at updated_at online
   printf 'Add user\n'
   printf 'Remove expired\n'
+  printf 'Expired retention\n'
   while IFS=$'\t' read -r username uuid level status created_at expires_at updated_at; do
     [ -n "$username" ] || continue
     online=offline
@@ -331,6 +332,8 @@ bo_menu_context() {
     dashboard:API) printf 'Manage the optional Blackout HTTP API.' ;;
     dashboard:Update) printf 'Compare and install the latest Blackout revision.' ;;
     users:'Add user') printf 'Create a VLESS user and add it to every managed inbound.' ;;
+    users:'Remove expired') printf 'Delete every user already marked expired.' ;;
+    users:'Expired retention') printf 'Auto-remove expired users after the configured number of days.' ;;
     users:*) printf 'Account: %s\nSelect to manage this user.' "${row%% *}" ;;
     user-detail:*) printf 'User: %s\nStatus: %s\nAction: %s' "$BO_MENU_SELECTED_USER" "$BO_MENU_SELECTED_USER_STATUS" "$row" ;;
     xray:*) printf 'Installed: %s\nService: %s' "$(bo_menu_xray_version)" "$(bo_menu_status_value 'xray service')" ;;
@@ -489,7 +492,7 @@ bo_menu_confirm_action() {
 
 bo_menu_user_from_selection() {
   local row
-  row="$(sed -n "$((BO_MENU_SELECTION - 1))p" <<<"$BO_MENU_USERS")"
+  row="$(sed -n "$((BO_MENU_SELECTION - 2))p" <<<"$BO_MENU_USERS")"
   BO_MENU_SELECTED_USER="${row%%$'\t'*}"
   row="${row#*$'\t'}"
   row="${row#*$'\t'}"
@@ -525,6 +528,18 @@ bo_menu_add_user() {
   bo_menu_run_action "Add user $username" bo_user_add "$username" "$uuid" "$expires_at"
 }
 
+bo_menu_expired_retention() {
+  local current days
+  bo_menu_load bo_user_cmd users.sh
+  current="$(bo_user_expired_retention_days 2>/dev/null || printf '3')"
+  days="$(bo_tui_input 'Auto-remove after days' "$current")" || return 0
+  [ -n "$days" ] || {
+    BO_MENU_RESULT='Cancelled: Expired retention'
+    return 0
+  }
+  bo_menu_run_action "Expired retention" bo_user_cmd expired-retention "$days" || true
+}
+
 bo_menu_activate_users() {
   if [ "$BO_MENU_SELECTION" -eq 0 ]; then
     bo_menu_add_user || true
@@ -535,6 +550,10 @@ bo_menu_activate_users() {
     bo_menu_load bo_user_cmd users.sh
     bo_menu_confirm_action 'Remove expired users' bo_user_cmd remove-expired || true
     bo_menu_collect_users
+    return
+  fi
+  if [ "$BO_MENU_SELECTION" -eq 2 ]; then
+    bo_menu_expired_retention || true
     return
   fi
   bo_menu_user_from_selection

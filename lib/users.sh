@@ -462,11 +462,44 @@ bo_user_expire() {
     bo_user_mark_expired_runtime "$username" || return 1
     printf '%s\n' "$username"
   done <<<"$usernames"
+  bo_user_auto_remove_expired
 }
 
 bo_user_remove_expired() {
   local username usernames
   usernames="$(bo_db_expired_usernames)" || return 1
+  while IFS= read -r username; do
+    [ -n "$username" ] || continue
+    bo_db_user_delete "$username" || return 1
+    printf '%s\n' "$username"
+  done <<<"$usernames"
+}
+
+bo_user_expired_retention_days() {
+  local value="${1:-}" stored
+  if [ -z "$value" ]; then
+    stored="$(bo_user_setting expired_remove_after_days "${BLACKOUT_EXPIRED_REMOVE_AFTER_DAYS:-3}")"
+    value="${stored:-3}"
+  fi
+  if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+    printf 'expired retention days must be numeric\n' >&2
+    return 1
+  fi
+  printf '%s\n' "$value"
+}
+
+bo_user_set_expired_retention_days() {
+  local days="$1"
+  days="$(bo_user_expired_retention_days "$days")" || return 1
+  bo_setting_set expired_remove_after_days "$days" || return 1
+  printf '%s\n' "$days"
+}
+
+bo_user_auto_remove_expired() {
+  local days="${1:-}" cutoff username usernames
+  days="$(bo_user_expired_retention_days "$days")" || return 1
+  cutoff="$(($(date +%s) - (days * 86400)))"
+  usernames="$(bo_db_expired_usernames_before "$cutoff")" || return 1
   while IFS= read -r username; do
     [ -n "$username" ] || continue
     bo_db_user_delete "$username" || return 1
@@ -495,6 +528,14 @@ bo_user_cmd() {
     link) bo_user_need_arg username "${1:-}" && bo_user_link "$1" ;;
     expire) bo_user_expire ;;
     remove-expired) bo_user_remove_expired ;;
+    auto-remove-expired) bo_user_auto_remove_expired "${1:-}" ;;
+    expired-retention)
+      if [ $# -gt 0 ]; then
+        bo_user_set_expired_retention_days "$1"
+      else
+        bo_user_expired_retention_days
+      fi
+      ;;
     *) bo_fail "unknown user command: ${cmd:-}" ;;
   esac
 }

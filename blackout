@@ -14,7 +14,7 @@ usage() {
 Blackout commands:
   blackout
   blackout status
-  blackout user add|remove|modify|lock|unlock|list|online|link|expire|remove-expired
+  blackout user add|remove|modify|lock|unlock|list|online|link|expire|remove-expired|auto-remove-expired|expired-retention
   blackout xray install|update|version|current
   blackout cert issue|renew|change-domain|status
   blackout config list|switch|current|reload

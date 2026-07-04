@@ -63,13 +63,18 @@ The current implementation prompts for a new duration, then updates SQLite. It d
 
 ```bash
 blackout user expire
+blackout user remove-expired
+blackout user auto-remove-expired [DAYS]
+blackout user expired-retention [DAYS]
 blackout user online
 blackout user online 10
 ```
 
-`expire` finds active users whose `expires_at` timestamp has passed, removes them from Xray runtime state, and marks them `expired`.
+`expire` finds active users whose `expires_at` timestamp has passed, removes them from Xray runtime state, marks them `expired`, and auto-removes users that have stayed expired past the retention window.
 
-Fresh installs create `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes.
+Fresh installs create `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes. Auto-remove defaults to users marked expired for at least 3 days.
+
+Use `blackout user expired-retention` to view the current retention. Use `blackout user expired-retention 7` to change it to 7 days. Use `blackout user auto-remove-expired [DAYS]` to run only the retention-based removal, or `blackout user remove-expired` to immediately delete all expired users.
 
 `online` samples Xray stats for active users and only prints users whose traffic counters increased during the sample window. The default sample window is 5 seconds. Pass a number of seconds to change it, for example `blackout user online 10`.
 

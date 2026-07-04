@@ -47,6 +47,9 @@ blackout user online
 blackout user online SECONDS
 blackout user link USERNAME
 blackout user expire
+blackout user remove-expired
+blackout user auto-remove-expired [DAYS]
+blackout user expired-retention [DAYS]
 ```
 
 - `add`: prompts for username and duration; creates a SQLite row and adds the user to Xray through the local API.
@@ -58,7 +61,10 @@ blackout user expire
 - `online`: samples Xray stats and prints only users whose traffic increased during the sample window.
 - `online SECONDS`: uses a custom numeric sample window instead of the 5 second default.
 - `link USERNAME`: renders the active user's client link from the current share template.
-- `expire`: removes expired active users from Xray runtime state and marks them `expired`.
+- `expire`: removes expired active users from Xray runtime state, marks them `expired`, and auto-removes expired rows older than the configured retention.
+- `remove-expired`: immediately deletes all users already marked `expired`.
+- `auto-remove-expired [DAYS]`: deletes users marked `expired` for at least the configured retention. Pass `DAYS` to override the configured retention for one run.
+- `expired-retention [DAYS]`: prints the current auto-remove retention, or stores a new numeric day value. The default is `3`.
 
 Usernames must start with an alphanumeric character and may contain letters, numbers, `.`, `_`, and `-`.
 
