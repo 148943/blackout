@@ -208,6 +208,19 @@ export BLACKOUT_DRY_RUN=1
 export BLACKOUT_ROOT_DIR="$ROOT_DIR"
 . "$ROOT_DIR/install.sh"
 
+os_release_12="$tmp/os-release-12"
+os_release_13="$tmp/os-release-13"
+os_release_11="$tmp/os-release-11"
+printf 'ID=debian\nVERSION_ID="12"\n' >"$os_release_12"
+printf 'ID=debian\nVERSION_ID="13"\n' >"$os_release_13"
+printf 'ID=debian\nVERSION_ID="11"\n' >"$os_release_11"
+BLACKOUT_OS_RELEASE="$os_release_12" bo_install_check_debian12
+BLACKOUT_OS_RELEASE="$os_release_13" bo_install_check_debian12
+if (BLACKOUT_OS_RELEASE="$os_release_11" bo_install_check_debian12) >/dev/null 2>&1; then
+  echo "Debian 11 passed OS check" >&2
+  exit 1
+fi
+
 menu_test_bin="$tmp/menu-alias/bin/blackout"
 menu_test_path="$tmp/menu-alias/bin/menu"
 mkdir -p "$(dirname "$menu_test_bin")"

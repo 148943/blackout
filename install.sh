@@ -48,7 +48,10 @@ bo_install_check_debian12() {
   local os_release="${BLACKOUT_OS_RELEASE:-/etc/os-release}"
   # shellcheck disable=SC1090
   . "$os_release"
-  [ "${VERSION_ID:-}" = "12" ] || bo_fail "Debian 12 required"
+  case "${VERSION_ID:-}" in
+    12|13) ;;
+    *) bo_fail "Debian 12 or 13 required" ;;
+  esac
 }
 
 bo_install_apt_packages() {

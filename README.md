@@ -1,6 +1,6 @@
 # Blackout
 
-Blackout is a Bash management suite for Debian 12 VPS hosts running Xray-core behind an Nginx reverse proxy. It installs and manages the `default` profile, TLS certificates from `acme.sh`, SQLite-backed users, automated expiry cleanup, Xray API runtime user changes, Xray core updates, and Blackout script updates.
+Blackout is a Bash management suite for Debian 12 and 13 VPS hosts running Xray-core behind an Nginx reverse proxy. It installs and manages the `default` profile, TLS certificates from `acme.sh`, SQLite-backed users, automated expiry cleanup, Xray API runtime user changes, Xray core updates, and Blackout script updates.
 
 Routine user operations use the local Xray API instead of restarting Xray. State is stored in SQLite at `/var/lib/blackout/blackout.db` after installation.
 
@@ -17,7 +17,7 @@ More documentation:
 
 ## Requirements
 
-- Fresh Debian 12 VPS.
+- Fresh Debian 12 or 13 VPS.
 - Root shell or `sudo -i`.
 - A domain name with an `A` record pointing to the VPS IPv4 address. Add an `AAAA` record only if IPv6 is configured and reachable.
 - Ports `80` and `443` open from the internet.
@@ -26,7 +26,7 @@ More documentation:
 
 Blackout installs its runtime dependencies during `bash install.sh`: `curl`, `unzip`, `jq`, `sqlite3`, `nginx`, `socat`, `cron`, `ca-certificates`, `git`, `uuid-runtime`, `python3`, `gnupg`, and [Gum](https://github.com/charmbracelet/gum). Gum is installed from Charm's signed Debian repository. If Gum cannot be installed, Blackout keeps a complete pure Bash TUI fallback.
 
-## Fresh Debian 12 VPS Install
+## Fresh Debian 12/13 VPS Install
 
 Run these commands as root on the VPS:
 
@@ -46,7 +46,7 @@ blackout user link USERNAME
 - `ACME email`: the email address used by `acme.sh`.
 - `Cloudflare API token`: shown only when the domain starts with `*.`.
 
-The installer checks Debian 12, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, creates `/usr/local/bin/menu` when that path is available, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, enables Xray and Nginx, and prints `blackout status` at the end. The local `blackout-api` service is installed but disabled by default.
+The installer checks Debian 12 or 13, installs packages, initializes SQLite, installs Blackout under `/opt/blackout`, installs the CLI at `/usr/local/bin/blackout`, creates `/usr/local/bin/menu` when that path is available, installs Xray-core, issues a certificate, renders the `default` Xray and Nginx configs, enables Xray and Nginx, and prints `blackout status` at the end. The local `blackout-api` service is installed but disabled by default.
 
 Normal domains use `acme.sh` standalone validation on port `80`. Wildcard domains use Cloudflare DNS validation and automatically request both the base domain and wildcard name, for example `new.example.com` and `*.new.example.com`.
 
