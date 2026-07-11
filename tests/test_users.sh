@@ -375,11 +375,12 @@ bo_db_user_insert expired_cmd 00000000-0000-0000-0000-000000000015 expired_cmd@e
 bo_user_cmd remove-expired | grep -qx expired_cmd
 [ -z "$(bo_db_user_status expired_cmd)" ]
 
-bo_user_expired_retention_days | grep -qx 3
-bo_user_cmd expired-retention 5 | grep -qx 5
-bo_user_expired_retention_days | grep -qx 5
-if bo_user_cmd expired-retention invalid >/dev/null 2>&1; then
-  echo "invalid expired retention succeeded" >&2
+if (bo_user_cmd expired-retention 5) >/dev/null 2>&1; then
+  echo "expired retention command succeeded" >&2
+  exit 1
+fi
+if bo_user_auto_remove_expired 1 >/dev/null 2>&1; then
+  echo "auto-remove accepted retention override" >&2
   exit 1
 fi
 
@@ -393,10 +394,9 @@ sqlite3 "$BLACKOUT_DB" "UPDATE users SET updated_at=$fresh_expired_updated WHERE
 bo_user_auto_remove_expired | grep -qx auto_old
 [ -z "$(bo_db_user_status auto_old)" ]
 bo_db_user_status auto_fresh | grep -qx expired
-bo_user_auto_remove_expired 1 | grep -qx auto_fresh
+bo_user_remove_expired | grep -qx auto_fresh
 [ -z "$(bo_db_user_status auto_fresh)" ]
 
-bo_user_cmd expired-retention 3 | grep -qx 3
 bo_db_user_insert auto_cron_old 00000000-0000-0000-0000-000000000018 auto_cron_old@example 0 expired 100 101
 sqlite3 "$BLACKOUT_DB" "UPDATE users SET updated_at=$old_expired_updated WHERE username='auto_cron_old';"
 bo_user_expire | grep -qx auto_cron_old

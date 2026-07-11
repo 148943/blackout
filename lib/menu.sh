@@ -173,15 +173,12 @@ bo_menu_rows() {
 }
 
 bo_menu_rows_users() {
-  local username uuid level status created_at expires_at updated_at online
+  local username uuid level status created_at expires_at updated_at
   printf 'Add user\n'
   printf 'Remove expired\n'
-  printf 'Expired retention\n'
   while IFS=$'\t' read -r username uuid level status created_at expires_at updated_at; do
     [ -n "$username" ] || continue
-    online=offline
-    bo_menu_is_online "$username" && online=online
-    printf '%-18s %-8s %-20s %s\n' "$username" "$status" "$(bo_menu_format_expiry "$expires_at")" "$online"
+    printf '%-18s %-8s %s\n' "$username" "$status" "$(bo_menu_format_expiry "$expires_at")"
   done <<<"$BO_MENU_USERS"
 }
 
@@ -333,7 +330,6 @@ bo_menu_context() {
     dashboard:Update) printf 'Compare and install the latest Blackout revision.' ;;
     users:'Add user') printf 'Create a VLESS user and add it to every managed inbound.' ;;
     users:'Remove expired') printf 'Delete every user already marked expired.' ;;
-    users:'Expired retention') printf 'Auto-remove expired users after the configured number of days.' ;;
     users:*) printf 'Account: %s\nSelect to manage this user.' "${row%% *}" ;;
     user-detail:*) printf 'User: %s\nStatus: %s\nAction: %s' "$BO_MENU_SELECTED_USER" "$BO_MENU_SELECTED_USER_STATUS" "$row" ;;
     xray:*) printf 'Installed: %s\nService: %s' "$(bo_menu_xray_version)" "$(bo_menu_status_value 'xray service')" ;;
@@ -375,6 +371,32 @@ bo_menu_render_rows() {
     printf '%s%s%-28s%s\n' "$style" "$marker" "$row" "$reset"
     index=$((index + 1))
   done <<<"$(bo_menu_rows)"
+}
+
+bo_menu_render_users_rows() {
+  local index=0 row marker style reset rendered_users=0
+  printf '%sActions%s\n' "$(bo_color cyan)" "$(bo_color reset)"
+  while IFS= read -r row; do
+    [ -n "$row" ] || continue
+    if [ "$index" -eq 2 ]; then
+      printf '\n%sUsers%s\n' "$(bo_color cyan)" "$(bo_color reset)"
+    fi
+    marker='  '
+    style=''
+    reset=''
+    if [ "$index" -eq "$BO_MENU_SELECTION" ]; then
+      marker='› '
+      style="$(bo_color selected)"
+      reset="$(bo_color reset)"
+    fi
+    printf '%s%s%-28s%s\n' "$style" "$marker" "$row" "$reset"
+    [ "$index" -lt 2 ] || rendered_users=1
+    index=$((index + 1))
+  done <<<"$(bo_menu_rows_users)"
+  if [ "$rendered_users" -eq 0 ]; then
+    printf '\n%sUsers%s\n' "$(bo_color cyan)" "$(bo_color reset)"
+    printf '  No users\n'
+  fi
 }
 
 bo_menu_selected_row() {
@@ -419,6 +441,12 @@ bo_menu_render() {
     bo_menu_render_help
   elif [ -n "$BO_MENU_RESULT" ]; then
     bo_tui_panel Result "$BO_MENU_RESULT" 70
+  elif [ "$BO_MENU_SCREEN" = users ]; then
+    bo_menu_render_users_rows
+    if [ "$mode" = wide ]; then
+      printf '\n'
+      bo_tui_panel Context "$(bo_menu_context "$selected")" 70
+    fi
   else
     bo_menu_render_rows
     if [ "$mode" = wide ]; then
@@ -435,7 +463,7 @@ bo_menu_open() {
   BO_MENU_SELECTION=0
   BO_MENU_RESULT=""
   case "$BO_MENU_SCREEN" in
-    users) bo_menu_collect_users; bo_menu_online_start ;;
+    users) bo_menu_collect_users ;;
     config) bo_menu_collect_profiles ;;
   esac
 }
@@ -492,7 +520,7 @@ bo_menu_confirm_action() {
 
 bo_menu_user_from_selection() {
   local row
-  row="$(sed -n "$((BO_MENU_SELECTION - 2))p" <<<"$BO_MENU_USERS")"
+  row="$(sed -n "$((BO_MENU_SELECTION - 1))p" <<<"$BO_MENU_USERS")"
   BO_MENU_SELECTED_USER="${row%%$'\t'*}"
   row="${row#*$'\t'}"
   row="${row#*$'\t'}"
@@ -528,18 +556,6 @@ bo_menu_add_user() {
   bo_menu_run_action "Add user $username" bo_user_add "$username" "$uuid" "$expires_at"
 }
 
-bo_menu_expired_retention() {
-  local current days
-  bo_menu_load bo_user_cmd users.sh
-  current="$(bo_user_expired_retention_days 2>/dev/null || printf '3')"
-  days="$(bo_tui_input 'Auto-remove after days' "$current")" || return 0
-  [ -n "$days" ] || {
-    BO_MENU_RESULT='Cancelled: Expired retention'
-    return 0
-  }
-  bo_menu_run_action "Expired retention" bo_user_cmd expired-retention "$days" || true
-}
-
 bo_menu_activate_users() {
   if [ "$BO_MENU_SELECTION" -eq 0 ]; then
     bo_menu_add_user || true
@@ -550,10 +566,6 @@ bo_menu_activate_users() {
     bo_menu_load bo_user_cmd users.sh
     bo_menu_confirm_action 'Remove expired users' bo_user_cmd remove-expired || true
     bo_menu_collect_users
-    return
-  fi
-  if [ "$BO_MENU_SELECTION" -eq 2 ]; then
-    bo_menu_expired_retention || true
     return
   fi
   bo_menu_user_from_selection
@@ -685,7 +697,7 @@ bo_menu_tick() {
   local count
   bo_menu_collect_status || true
   case "$BO_MENU_SCREEN" in
-    users) bo_menu_collect_users; bo_menu_online_poll ;;
+    users) bo_menu_collect_users ;;
     config) bo_menu_collect_profiles ;;
   esac
   count="$(bo_menu_row_count)"

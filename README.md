@@ -4,7 +4,7 @@ Blackout is a Bash management suite for Debian 12 and 13 VPS hosts running Xray-
 
 Routine user operations use the local Xray API instead of restarting Xray. State is stored in SQLite at `/var/lib/blackout/blackout.db` after installation.
 
-Fresh installs add `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes. Expired users are auto-removed after 3 days by default; change it with `blackout user expired-retention DAYS`.
+Fresh installs add `/etc/cron.d/blackout-expire`, which runs `blackout user expire` every 5 minutes. Expired users are auto-removed after 3 days.
 
 More documentation:
 
