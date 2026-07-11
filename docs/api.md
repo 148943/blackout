@@ -114,6 +114,8 @@ curl -sS -X PATCH "$BASE/users/aiman" \
   -d '{"duration":"7d"}'
 ```
 
+Use `"duration":"never"` to create or modify a user with no practical expiry.
+
 Lock, unlock, and remove:
 
 ```bash

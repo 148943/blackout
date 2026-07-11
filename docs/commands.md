@@ -51,9 +51,9 @@ blackout user remove-expired
 blackout user auto-remove-expired
 ```
 
-- `add`: prompts for username and duration; creates a SQLite row and adds the user to Xray through the local API.
+- `add`: prompts for username and duration; use values like `12h`, `7d`, `1m`, or `never`. It creates a SQLite row and adds the user to Xray through the local API.
 - `remove USERNAME`: removes the user from Xray runtime state, then deletes the SQLite row.
-- `modify USERNAME`: prompts for a new duration, then updates SQLite. It does not rename the user or change the UUID.
+- `modify USERNAME`: prompts for a new duration, then updates SQLite. Use `never` for no practical expiry. It does not rename the user or change the UUID.
 - `lock USERNAME`: removes the user from Xray runtime state and marks the SQLite row `locked`.
 - `unlock USERNAME`: adds the user back to Xray runtime state and marks the row `active` if it has not expired.
 - `list`: prints users from SQLite with username, status, and expiry timestamp.

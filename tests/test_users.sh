@@ -115,7 +115,7 @@ done
 
 bo_user_add aiman 00000000-0000-0000-0000-000000000001 4102444800
 bo_db_user_status aiman | grep -qx active
-bo_user_list | grep -q '2100-01-01 00:00:00 UTC'
+bo_user_list | grep -q 'never'
 bo_db_users_rows | grep -q $'^aiman\t00000000-0000-0000-0000-000000000001\t0\tactive\t'
 [ "$(bo_db_users_rows | awk -F '\t' 'NR == 1 { print NF }')" = 7 ]
 bo_db_user_insert zulu 00000000-0000-0000-0000-000000000013 zulu@example 0 locked 100 4102444800
@@ -150,6 +150,8 @@ if bo_user_modify_duration aiman invalid >/dev/null 2>&1; then
   echo "invalid duration update succeeded" >&2
   exit 1
 fi
+bo_user_modify_duration aiman never
+[ "$(bo_db_user_get aiman | cut -f7)" = "4102444800" ]
 
 before_events="$bo_xray_events"
 if bo_user_add aiman 00000000-0000-0000-0000-000000000004 4102444800 2>/dev/null; then

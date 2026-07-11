@@ -208,7 +208,11 @@ if grep -Eq 'online|offline' <<<"$users_frame"; then
 fi
 grep -q 'locked' <<<"$users_frame"
 grep -q 'expired' <<<"$users_frame"
-grep -q '1 Jan 2100' <<<"$users_frame"
+grep -q 'never' <<<"$users_frame"
+if grep -q '1 Jan 2100' <<<"$users_frame"; then
+  echo 'user never expiry rendered as date' >&2
+  exit 1
+fi
 if grep -q '2100-01-01' <<<"$users_frame"; then
   echo 'user expiry rendered ISO date' >&2
   exit 1

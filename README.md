@@ -73,7 +73,7 @@ Create the first user:
 blackout user add
 ```
 
-The prompt asks for username and duration such as `12h`, `7d`, or `1m`. Blackout stores the user in SQLite, generates a UUID, and adds the VLESS client to every user inbound in the running Xray config through the local Xray API.
+The prompt asks for username and duration such as `12h`, `7d`, `1m`, or `never`. Blackout stores the user in SQLite, generates a UUID, and adds the VLESS client to every user inbound in the running Xray config through the local Xray API.
 
 Print the client link:
 

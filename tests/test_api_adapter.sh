@@ -95,6 +95,10 @@ out="$(bo_api_cmd list)"
 out="$(bo_api_cmd modify aiman 12h)"
 [ "$(printf '%s\n' "$out" | json_get data.username)" = aiman ]
 
+out="$(bo_api_cmd modify aiman never)"
+[ "$(printf '%s\n' "$out" | json_get data.username)" = aiman ]
+[ "$(bo_db_user_get aiman | cut -f7)" = "4102444800" ]
+
 out="$(bo_api_cmd lock aiman)"
 [ "$(printf '%s\n' "$out" | json_get data.status)" = locked ]
 

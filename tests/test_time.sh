@@ -7,6 +7,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [ "$(bo_duration_seconds 7d)" = "604800" ]
 [ "$(bo_duration_seconds 30d)" = "2592000" ]
 [ "$(bo_duration_seconds 1m)" = "2592000" ]
+[ "$(bo_expiry_epoch never)" = "4102444800" ]
 if bo_duration_seconds nope >/dev/null 2>&1; then
   echo "invalid duration accepted" >&2
   exit 1

@@ -99,7 +99,12 @@ bo_menu_is_online() {
 
 bo_menu_format_expiry() {
   local epoch="$1"
-  LC_TIME=C date -u -d "@$epoch" '+%-d %b %Y' 2>/dev/null || printf '%s' "$epoch"
+  if declare -F bo_expiry_short_text >/dev/null 2>&1 || [ -r "$BLACKOUT_LIB_DIR/time.sh" ]; then
+    bo_menu_load bo_expiry_short_text time.sh
+    bo_expiry_short_text "$epoch"
+  else
+    LC_TIME=C date -u -d "@$epoch" '+%-d %b %Y' 2>/dev/null || printf '%s\n' "$epoch"
+  fi
 }
 
 bo_menu_status_value() {
@@ -547,7 +552,7 @@ bo_menu_add_user() {
     BO_MENU_RESULT='Cancelled: Add user'
     return 0
   }
-  duration="$(bo_tui_input 'Duration (12h, 7d, 1m)' 30d)" || return 0
+  duration="$(bo_tui_input 'Duration (12h, 7d, 1m, never)' 30d)" || return 0
   expires_at="$(bo_expiry_epoch "$duration")" || {
     BO_MENU_RESULT="Invalid duration: $duration"
     return 1
@@ -580,7 +585,7 @@ bo_menu_activate_user_detail() {
   case "$row" in
     Link) bo_menu_run_action "Links for $BO_MENU_SELECTED_USER" bo_user_cmd link "$BO_MENU_SELECTED_USER" || true ;;
     'Modify duration')
-      duration="$(bo_tui_input 'New duration (12h, 7d, 1m)' 30d)" || return
+      duration="$(bo_tui_input 'New duration (12h, 7d, 1m, never)' 30d)" || return
       bo_menu_run_action "Modify $BO_MENU_SELECTED_USER" bo_user_modify_duration "$BO_MENU_SELECTED_USER" "$duration" || true
       bo_menu_refresh_selected_user
       ;;

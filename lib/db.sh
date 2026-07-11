@@ -4,6 +4,15 @@ bo_db() {
   sqlite3 "$BLACKOUT_DB" "$@"
 }
 
+if ! declare -F bo_expiry_text >/dev/null 2>&1; then
+  # shellcheck disable=SC1091
+  if [ -r "${BLACKOUT_LIB_DIR:-}/time.sh" ]; then
+    . "$BLACKOUT_LIB_DIR/time.sh"
+  else
+    . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/time.sh"
+  fi
+fi
+
 bo_sql_quote() {
   printf "%s" "$1" | sed "s/'/''/g"
 }
@@ -81,7 +90,14 @@ bo_db_user_get() {
 }
 
 bo_db_users_list() {
-  sqlite3 -header -column "$BLACKOUT_DB" "SELECT username,status,strftime('%Y-%m-%d %H:%M:%S UTC', expires_at, 'unixepoch') AS expires_at FROM users ORDER BY username;"
+  local row username status expires_at
+  printf '%-8s  %-6s  %s\n' username status expires_at
+  printf '%-8s  %-6s  %s\n' -------- ------ ----------
+  sqlite3 -separator $'\t' "$BLACKOUT_DB" "SELECT username,status,expires_at FROM users ORDER BY username;" |
+    while IFS=$'\t' read -r username status expires_at; do
+      [ -n "$username" ] || continue
+      printf '%-8s  %-6s  %s\n' "$username" "$status" "$(bo_expiry_text "$expires_at")"
+    done
 }
 
 bo_db_users_rows() {

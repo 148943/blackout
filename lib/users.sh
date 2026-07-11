@@ -177,7 +177,7 @@ bo_user_add() {
 bo_user_add_prompt() {
   local username duration uuid expires_at
   read -r -p "Username: " username
-  read -r -p "Duration (12h, 7d, 1m): " duration
+  read -r -p "Duration (12h, 7d, 1m, never): " duration
   if ! expires_at="$(bo_expiry_epoch "$duration")"; then
     printf 'invalid duration: %s\n' "$duration" >&2
     return 1
@@ -259,7 +259,7 @@ bo_user_modify_duration() {
 
 bo_user_modify() {
   local username="$1" duration
-  read -r -p "New duration (12h, 7d, 1m): " duration
+  read -r -p "New duration (12h, 7d, 1m, never): " duration
   bo_user_modify_duration "$username" "$duration"
 }
 

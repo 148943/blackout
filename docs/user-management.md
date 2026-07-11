@@ -27,7 +27,7 @@ blackout user add
 The prompt asks for:
 
 - Username.
-- Duration, for example `12h`, `7d`, `30d`, or `1m`.
+- Duration, for example `12h`, `7d`, `30d`, `1m`, or `never`.
 
 Blackout generates a UUID, stores the user in SQLite, and calls Xray API `adu` for every VLESS user inbound in the active Xray config. If any Xray API add fails, the user row is marked `locked`.
 
@@ -57,7 +57,7 @@ blackout user remove USERNAME
 blackout user modify USERNAME
 ```
 
-The current implementation prompts for a new duration, then updates SQLite. It does not rename users and does not change the existing UUID.
+The current implementation prompts for a new duration, then updates SQLite. Use `never` for a user with no practical expiry. It does not rename users and does not change the existing UUID.
 
 ## Expiry And Online Stats
 
